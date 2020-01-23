@@ -9,7 +9,6 @@ class VisualEnvironment:
         self.size = size
         self.includeRobot = includeRobot
         self.robot_hl = 2.0
-        self.world = None
         self.data = None
         self.addObstacles = addObstacles
         self.grad_bg = grad_bg
@@ -37,7 +36,7 @@ class VisualEnvironment:
                                             self.center_obstacles[:,1],
                                             upper_bounds[:,0],
                                             upper_bounds[:,1]),axis=1), axis=1)
-        self.robot_center =  self.safe_robot_center(np.floor(self.size * np.random.rand(2)))
+        self.robot_center = self.safe_robot_center(np.floor(self.size * np.random.rand(2)))
         
     def with_new_robot_position(self, new_robot_center):
         '''
@@ -55,47 +54,12 @@ class VisualEnvironment:
         result.robot_center = new_robot_center
         return result
         
-    # def build_geometry(self):
-    #     '''
-    #     Builds the shapely objects corresponding to this environment
-    #     '''
-    #     self.world = box(0.0, 0.0, self.size, self.size)
-    #     self.obstacles = []
-    #     for i in range(self.num_obstacles):
-    #         if self.type_obstacle[i] == 0:
-    #             obs = self.make_box(self.center_obstacles[i, :], self.spec_obstacle[i])
-    #         else:
-    #             obs = self.make_circle(self.center_obstacles[i, :], self.spec_obstacle[i])
-    #         self.obstacles.append(obs)
-    #     self.robot = None
-    #     if self.includeRobot:
-    #         self.robot = self.make_box(self.robot_center, self.robot_hl)
-
     def build_data(self):
         '''
         Builds a numpy array with different integer range values for empty space, obstacles, robot
         '''
         self.data = np.array([[self.value_for_position([x, y]) for y in range(int(self.size))] for x in range(int(self.size))])
-        # if self.world is None:
-        #     self.build_geometry()
-        # self.build_empty()
-        # if self.includeRobot:
-        #     for x in range(self.size):
-        #         for y in range(self.size):
-        #             p = Point(x, y)
-        #             if self.robot.contains(p):
-        #                 self.data[x, y] += np.random.randint(43, 47)
-    
-    # def build_empty(self):
-    #     self.data = np.random.randint(0, 30, size=(self.size,self.size))
-    #     for x in range(self.size):
-    #         for y in range(self.size):
-    #             p = Point(x, y)
-    #             for obs in self.obstacles:
-    #                 if obs.contains(p):
-    #                     self.data[x, y] += np.random.randint(80, 90)
-    #                     break
-    
+
     def generate_trajectory(self, length):
         envs = []
         controls = []
@@ -147,20 +111,6 @@ class VisualEnvironment:
     def square_obs_distance(self, center, point):
         return np.max(np.abs(center-point))
     
-    # def plot_geometry(self):
-    #     '''
-    #     Uses matplotlib to plot directly shapely objects.
-    #     '''
-    #     if self.world is None:
-    #         self.build_geometry()
-    #     fig = plt.figure()
-    #     plt.fill(*self.world.exterior.xy, 'g')
-    #     for obs in self.obstacles:
-    #         plt.fill(*obs.exterior.xy, 'b')
-    #     if self.robot is not None:
-    #         plt.fill(*self.robot.exterior.xy, 'y')
-    #     plt.show()
-    
     def plot_data(self):
         '''
         Plots the raw data generated after build_array
@@ -168,9 +118,3 @@ class VisualEnvironment:
         if self.data is None:
             self.build_data()
         plt.imshow(self.data)
-        
-    # def make_box(self, center, half_length):
-    #     return box(center[0]-half_length, center[1]-half_length, center[0]+half_length, center[1]+half_length)
-
-    # def make_circle(self, center, radius):
-    #     return Point(center[0], center[1]).buffer(radius)
