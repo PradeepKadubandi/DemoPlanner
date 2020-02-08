@@ -1,0 +1,2 @@
+Each row contains 1026 values, first 2 being robot position and the next 1024 being the image as numpy array.
+No obstacles are generated, only robot for now.

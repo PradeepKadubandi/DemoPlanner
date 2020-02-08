@@ -1,0 +1,8 @@
+Each row contains 1026 values, first 2 being robot position and the next 1024 being the image as numpy array.
+No obstacles are generated, only robot for now.
+
+Changes from version1:
+----------------------
+- Fixed values for background and robot (gradient = 0)
+- background value = 0
+- robot value = 255

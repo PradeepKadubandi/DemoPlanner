@@ -1,0 +1,15 @@
+Each row contains 2058 values: x_t, y_t, I_t, u_t, x_tplus, y_tplus, I_tplus
+
+x_t : Robot position at time t (2)
+y_t : For now only goal position, no obstacles are generated (2)
+I_t : image with above two (1024)
+u_t : control input (2)
+
+Next 3 are corresponding values of first 3 in next time step. 
+(y_tplus i.e., Goal would be same as y_t)
+
+------------------
+
+The trajectories are generated using only 8 available actions : 
+UP, DOWN, RIGHT, LEFT and the 4 diagnonals between them with uniform step size along
+x or y direction (-1 or +1).

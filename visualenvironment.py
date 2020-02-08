@@ -37,6 +37,7 @@ class VisualEnvironment:
                                             upper_bounds[:,0],
                                             upper_bounds[:,1]),axis=1), axis=1)
         self.robot_center = self.safe_robot_center(np.floor(self.size * np.random.rand(2)))
+        self.goal_center = None
         
     def with_new_robot_position(self, new_robot_center):
         '''
@@ -51,6 +52,7 @@ class VisualEnvironment:
         result.grad_bg = self.grad_bg
         result.grad_obs = self.grad_obs
         result.grad_robot = self.grad_robot
+        result.goal_center = self.goal_center
         result.robot_center = new_robot_center
         return result
         
@@ -63,7 +65,7 @@ class VisualEnvironment:
     def generate_trajectory(self, length):
         envs = []
         controls = []
-        stepsize = 3
+        stepsize = 5 #Review: What is a reasonable range for control input?
         delta_t = 1
         direction = np.random.choice([-1, +1], size=(2))
         current_env = self
@@ -73,6 +75,10 @@ class VisualEnvironment:
             current_env = current_env.with_new_robot_position(new_robot_pos)
             envs.append(current_env)
             controls.append(control)
+        # Update goal position for all environments in trajectory
+        goal = current_env.robot_center
+        for e in envs:
+            e.goal_center = goal
         return envs, controls, direction
 
     def value_for_position(self, pos):
@@ -96,14 +102,21 @@ class VisualEnvironment:
         if min_distance_from_any_obs_center is not None:
             value_from_obstacle = obs_center_value - self.grad_obs * min_distance_from_any_obs_center
 
-        robot_center_value = 255.0
+        robot_center_value = 191.5 #Review: Numbers for robot and goal centers
         value_from_robot = 0.0
         if self.includeRobot:
             dist = self.square_obs_distance(self.robot_center, pos)
             if dist <= self.robot_hl:
                 value_from_robot = robot_center_value - self.grad_robot * dist
 
-        return value_from_world + value_from_obstacle + value_from_robot
+        goal_center_value = 63.5
+        value_from_goal = 0.0
+        if self.goal_center is not None:
+            dist = self.square_obs_distance(self.goal_center, pos)
+            if dist <= self.robot_hl:
+                value_from_goal = goal_center_value - self.grad_robot * dist
+
+        return value_from_world + value_from_obstacle + value_from_robot + value_from_goal
         
     def circular_obs_distance(self, center, point):
         return np.linalg.norm(center-point)
