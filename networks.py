@@ -60,12 +60,16 @@ class ComposedAutoEncoder(nn.Module):
         self.img_res = img_res
         self.z_dim = z_dim
         self.img_dim = self.img_res * self.img_res
-        self.encoder = ImageEncoder(1, [4, 8, 16], 'enc')
-        self.decoder = ImageDecoder([16, 8, 4], 1, 'dec')
+        layers_channels = [4, 8, 16]
+        in_channels = 1
+        self.encoder = ImageEncoder(in_channels, layers_channels, 'enc')
+        self.decoder = ImageDecoder(reversed(layers_channels), in_channels, 'dec')
 
     def forward(self, data_batch):
         ip_enc = torch.reshape(data_batch, [-1, 1, self.img_res, self.img_res])
-        return self.decoder(self.encoder(ip_enc))
+        z = self.encoder(ip_enc)
+        op = self.decoder(z)
+        return op
 
 class AutoEncoder(nn.Module):
     def __init__(self, x_dim=2, img_res=32, z_dim=2):
