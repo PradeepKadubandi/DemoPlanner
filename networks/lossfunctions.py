@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def vae_loss(img_dim, recon_x, x, mu, logvar):
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, img_dim), reduction='sum')
+def vae_loss(recon_x, x, mu, logvar):
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -18,7 +18,7 @@ def vae_loss(img_dim, recon_x, x, mu, logvar):
 # Instead, if we ever combine different loss functions with different network structures, current model is better.
 def vae_loss_adapter(net, ip_batch):
     recon_batch, mu, logvar = net(ip_batch)
-    return recon_batch, vae_loss(recon_batch, data, mu, logvar)
+    return recon_batch, vae_loss(recon_batch, ip_batch, mu, logvar)
 
 def mse_loss_adapter(net, ip_batch):
     op_batch = net(ip_batch)

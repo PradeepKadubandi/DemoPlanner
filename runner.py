@@ -22,7 +22,6 @@ class ExptRunner:
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
         self.prev_offset = 0
-        print ("Log folder : {}".format(self.log_folder))
 
     def log_network_details(self):
         header1 = StringIO()
@@ -99,10 +98,6 @@ class ExptRunner:
         torch.save(self.net.state_dict(), self.log_folder + '/autoenc.pth')
 
     def save_matplotlib_comparison(self, rows, ip_imgs, op_imgs):
-        print (ip_imgs.size())
-        print (op_imgs.size())
-        print (np.max(ip_imgs.numpy()))
-        print (np.max(op_imgs.numpy()))
         fig = plt.figure()
         for r in range(rows):
             ax = plt.subplot(rows, 2, r*2 + 1)

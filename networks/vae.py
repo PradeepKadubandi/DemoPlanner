@@ -10,13 +10,16 @@ class VAE(nn.Module):
         self.z_dim = z_dim
         self.img_dim = img_res * img_res
 
-        self.fc1 = nn.Linear(self.img_dim, self.img_dim / 2)
-        self.fc2 = nn.Linear(self.img_dim / 2, self.img_dim / 4)
-        self.fc31 = nn.Linear(self.img_dim / 4, self.z_dim)
-        self.fc32 = nn.Linear(self.img_dim / 4, self.z_dim)
-        self.fc4 = nn.Linear(self.z_dim, self.img_dim / 4)
-        self.fc5 = nn.Linear(self.img_dim / 4, self.img_dim / 2)
-        self.fc6 = nn.Linear(self.img_dim / 2, self.img_dim)
+        hl1 = int(self.img_dim / 2)
+        hl2 = int(hl1 / 2)
+
+        self.fc1 = nn.Linear(self.img_dim, hl1)
+        self.fc2 = nn.Linear(hl1, hl2)
+        self.fc31 = nn.Linear(hl2, self.z_dim)
+        self.fc32 = nn.Linear(hl2, self.z_dim)
+        self.fc4 = nn.Linear(self.z_dim, hl2)
+        self.fc5 = nn.Linear(hl2, hl1)
+        self.fc6 = nn.Linear(hl1, self.img_dim)
 
     def encode(self, x):
         h1 = F.relu(self.fc2(F.relu(self.fc1(x))))
@@ -32,6 +35,6 @@ class VAE(nn.Module):
         return torch.sigmoid(self.fc6(h3))
 
     def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, self.img_dim))
+        mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
