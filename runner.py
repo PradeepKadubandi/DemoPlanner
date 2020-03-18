@@ -18,7 +18,7 @@ class ExptRunner:
         self.net = net
         self.data_adapter_func = data_adapter_func
         self.loss_adapter_func = loss_adapter_func
-        self.expt_name = expt_prefix + time.strftime('%m-%d-%H-%M-%S')
+        self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
         self.prev_offset = 0
@@ -61,6 +61,7 @@ class ExptRunner:
         For now, resume_previous_training can be set to True immediately after one training run
         and should use the same Trainer object with more epochs, could consider better ways in future.
         '''
+        start = time.time()
         self.net.train()
         if not resume_previous_training:
             self.prev_offset = 0
@@ -90,6 +91,7 @@ class ExptRunner:
                     running_loss = 0.0
 
         self.prev_offset += epochs
+        writeline(builder, 'Total time taken for training {} sec.'.format(time.time() - start))
 
         with open(self.log_folder + '/train_log.txt', 'w') as f:
             f.write(builder.getvalue())
@@ -97,11 +99,12 @@ class ExptRunner:
 
         torch.save(self.net.state_dict(), self.log_folder + '/autoenc.pth')
 
-    def save_matplotlib_comparison(self, rows, ip_imgs, op_imgs):
+    def save_matplotlib_comparison(self, rows, ip_imgs, op_imgs, cmapstr='gray'):
         fig = plt.figure()
         for r in range(rows):
             ax = plt.subplot(rows, 2, r*2 + 1)
-            plt.imshow(ip_imgs[r])
+            cmap = plt.get_cmap(cmapstr)
+            plt.imshow(ip_imgs[r], cmap=cmap)
             if r==0:
                 ax.title.set_text('Original')
             ax.set_yticklabels([])
@@ -109,7 +112,7 @@ class ExptRunner:
             ax = plt.subplot(rows, 2, r*2 + 2)
             ax.set_yticklabels([])
             ax.set_xticklabels([])
-            plt.imshow(op_imgs[r])
+            plt.imshow(op_imgs[r], cmap=cmap)
             if r==0:
                 ax.title.set_text('Recontructed')
 
