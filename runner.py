@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 import time
 import os
 from io import StringIO
+from datetime import datetime
 
 from utils import writeline
 
 class ExptRunner:
     def __init__(self, expt_prefix, net, train_data, test_data,
-                    data_adapter_func, loss_adapter_func, data_to_img_func=None):
+                    data_adapter_func, loss_adapter_func, data_to_img_func=None, device=None):
         self.expt_prefix = expt_prefix
         self.net = net
         self.train_data = train_data
@@ -22,6 +23,7 @@ class ExptRunner:
         self.data_adapter_func = data_adapter_func
         self.loss_adapter_func = loss_adapter_func
         self.data_to_img_func = data_to_img_func
+        self.device = device
         self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
@@ -79,6 +81,7 @@ class ExptRunner:
         running_loss = 0.0
         eval_freq = 1000
         for epoch in range(epochs):
+            writeline(builder, '{}: Epoch {} Begin'.format(datetime.now(), epoch))
             for i, data in enumerate(self.train_loader, 0):
                 data = data.float()
                 optimizer.zero_grad()
@@ -91,9 +94,10 @@ class ExptRunner:
                 
                 running_loss += loss.item()
                 if i % eval_freq == (eval_freq-1):
+                    index = (self.prev_offset+epoch) * len(self.train_loader) + i
+                    writeline(builder, '{}: Eval at Index {} Begin'.format(datetime.now(), index))
                     avg_loss = running_loss / eval_freq
                     writeline(builder, '[%d, %5d] Average Minibatch loss: %.3f' % (self.prev_offset+epoch+1, i+1, avg_loss))
-                    index = (self.prev_offset+epoch) * len(self.train_loader) + i
                     self.writer.add_scalar('training_loss', avg_loss, index)
                     running_loss = 0.0
 
@@ -116,6 +120,8 @@ class ExptRunner:
                             filename=filename,
                             printHeader=printHeader,
                             shouldShow=shouldShowReconstruction)
+
+                    writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
 
         self.prev_offset += epochs
         writeline(builder, 'Total time taken for training {} sec.'.format(time.time() - start))
