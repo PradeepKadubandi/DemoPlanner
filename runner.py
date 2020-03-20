@@ -134,6 +134,8 @@ class ExptRunner:
 
     def save_matplotlib_comparison(self, rows, ip_imgs, op_imgs, filename,
                                     cmapstr='gray', shouldShow=True, printHeader=None):
+        ip_imgs = ip_imgs.cpu()
+        op_imgs = op_imgs.cpu()
         if printHeader is not None:
             print (printHeader)
         fig = plt.figure()
