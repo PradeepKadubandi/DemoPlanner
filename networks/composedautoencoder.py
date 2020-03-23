@@ -7,13 +7,12 @@ from networks.imageencoder import ImageEncoder
 from networks.imagedecoder import ImageDecoder
 
 class ComposedAutoEncoder(nn.Module):
-    def __init__(self, x_dim=2, img_res=32, z_dim=2, useMaxPool=False):
+    def __init__(self, x_dim=2, img_res=32, z_dim=2, useMaxPool=False, layers_channels = [4, 8, 16]):
         super(ComposedAutoEncoder, self).__init__()
         self.x_dim = x_dim
         self.img_res = img_res
         self.z_dim = z_dim
         self.img_dim = self.img_res * self.img_res
-        layers_channels = [4, 8, 16]
         in_channels = 1
         self.encoder = ImageEncoder(in_channels, layers_channels, 'enc', useMaxPool=useMaxPool)
         self.decoder = ImageDecoder(list(reversed(layers_channels)), in_channels, 'dec')

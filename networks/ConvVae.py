@@ -6,14 +6,14 @@ from networks.imageencoder import ImageEncoder
 from networks.imagedecoder import ImageDecoder
 
 class ConvVae(nn.Module):
-    def __init__(self, img_res=32, z_dim=16):
+    def __init__(self, img_res=32, z_dim=16, layers_channels=[4,8,16]):
         super(ConvVae, self).__init__()
 
         self.img_res = img_res
         self.z_dim = z_dim
         self.img_dim = img_res * img_res
 
-        self.layers_channels = [4, 8, 16]
+        self.layers_channels = layers_channels
         self.div = math.pow(2, len(self.layers_channels))
         self.fc_input_size = self.layers_channels[-1] * int(self.img_res / self.div) * int(self.img_res / self.div)
         in_channels = 1
