@@ -4,8 +4,9 @@ import torch.nn.functional as F
 from collections import OrderedDict
 
 class autoencoder(torch.torch.nn.Module):
-    def __init__(self):
+    def __init__(self, device=None):
         super(autoencoder, self).__init__()
+        self.device = device
         self.encoder = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1), #bias=False
             torch.nn.ReLU(True),
@@ -28,6 +29,7 @@ class autoencoder(torch.torch.nn.Module):
 
     def forward(self, x):
         x = torch.reshape(x, [-1, 1, 32, 32])
+        x = x.to(self.device)
         x = self.encoder(x)
         x = self.decoder(x)
         return x

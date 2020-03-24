@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 
 class ImageDecoder(nn.Module):
-    def __init__(self, layers_channels, output_channels, prefix, addFlatten=True):
+    def __init__(self, layers_channels, output_channels, prefix, addFlatten=True, useSigmoid=True):
         super(ImageDecoder, self).__init__()
 
         layers = OrderedDict()
@@ -17,7 +17,8 @@ class ImageDecoder(nn.Module):
         layers[prefix + '_convt' + str(last)] = nn.ConvTranspose2d(in_channels=layers_channels[last],
                                     out_channels=output_channels,
                                     kernel_size=3, stride=2, padding=1, output_padding=1)
-        layers[prefix + '_sigmoid' + str(last)] = nn.Sigmoid()
+        if useSigmoid:
+            layers[prefix + '_sigmoid' + str(last)] = nn.Sigmoid()
         if addFlatten:
             layers[prefix + '_flat' + str(last)] = nn.Flatten()
 

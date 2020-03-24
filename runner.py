@@ -28,7 +28,7 @@ class ExptRunner:
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
         self.prev_offset = 0
-        self.train_loader = DataLoader(train_data, batch_size=50, shuffle=True)
+        self.train_loader = DataLoader(train_data, batch_size=100, shuffle=True)
         self.test_loader = DataLoader(test_data, batch_size=3, shuffle=True)
 
     def log_network_details(self):
@@ -75,7 +75,7 @@ class ExptRunner:
             self.prev_offset = 0
             self.log_network_details()
 
-        optimizer = optim.Adam(self.net.parameters(), lr=1e-4)
+        optimizer = optim.Adam(self.net.parameters())
 
         builder = StringIO()
         running_loss = 0.0
