@@ -27,3 +27,7 @@ def mse_loss_adapter(net, ip_batch):
 def smooth_l1_loss_adapter(net, ip_batch):
     op_batch = net(ip_batch)
     return op_batch, F.smooth_l1_loss(ip_batch, op_batch)
+
+def vae_smooth_l1_loss_adapter(net, ip_batch):
+    op_batch, _, _ = net(ip_batch)
+    return op_batch, F.smooth_l1_loss(ip_batch, op_batch)
