@@ -15,7 +15,7 @@ from utils import writeline
 
 class ExptRunner:
     def __init__(self, expt_prefix, net, train_data, test_data,
-                    data_adapter_func, loss_adapter_func, data_to_img_func=None, device=None):
+                    data_adapter_func, loss_adapter_func, data_to_label_adapter, data_to_img_func=None):
         self.expt_prefix = expt_prefix
         self.net = net
         self.train_data = train_data
@@ -23,13 +23,12 @@ class ExptRunner:
         self.data_adapter_func = data_adapter_func
         self.loss_adapter_func = loss_adapter_func
         self.data_to_img_func = data_to_img_func
-        self.device = device
+        self.data_to_label_adapter = data_to_label_adapter
         self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
         self.prev_offset = 0
         self.train_loader = DataLoader(train_data, batch_size=100, shuffle=True)
-        self.test_loader = DataLoader(test_data, batch_size=3, shuffle=True)
 
     def log_network_details(self):
         header1 = StringIO()
@@ -63,6 +62,11 @@ class ExptRunner:
         builder.close()
         header1.close()
 
+    def run_mini_batch(self, miniBatch):
+        ip_batch = self.data_adapter_func(miniBatch)
+        ground_truth = self.data_to_label_adapter(miniBatch)
+        op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
+        return op_batch, loss
 
     def train(self, epochs, resume_previous_training=False, shouldShowReconstruction=False):
         '''
@@ -76,6 +80,9 @@ class ExptRunner:
             self.log_network_details()
 
         optimizer = optim.Adam(self.net.parameters())
+        # For evaluating while training
+        train_data_float = self.train_data.data[:10000].float()
+        test_data_float = self.test_data.data.float()
 
         builder = StringIO()
         running_loss = 0.0
@@ -86,8 +93,7 @@ class ExptRunner:
                 data = data.float()
                 optimizer.zero_grad()
 
-                ip_batch = self.data_adapter_func(data)
-                op_batch, loss = self.loss_adapter_func(self.net, ip_batch)
+                op_batch, loss = self.run_mini_batch(data)
                 
                 loss.backward()
                 optimizer.step()
@@ -102,12 +108,10 @@ class ExptRunner:
                     running_loss = 0.0
 
                     with torch.no_grad():
-                        train_input = self.data_adapter_func(self.train_data.data[:10000].float())
-                        train_out, train_loss = self.loss_adapter_func(self.net, train_input)
+                        train_out, train_loss = self.run_mini_batch(train_data_float)
                         writeline(builder, 'MinibatchIndex {}: Training Loss (Max 10000 rows): {}'.format(index, train_loss))
 
-                        test_input = self.data_adapter_func(self.test_data.data.float())
-                        test_out, test_loss = self.loss_adapter_func(self.net, test_input)
+                        test_out, test_loss = self.run_mini_batch(test_data_float)
                         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
                     if self.data_to_img_func is not None:
@@ -165,22 +169,20 @@ class ExptRunner:
         builder = StringIO()
         test_loss = 0.0
         with torch.no_grad():
-            for i, data in enumerate(self.test_loader, 0):
-                data = data.float()
-                ip_batch = self.data_adapter_func(data)
-                op_batch, loss = self.loss_adapter_func(self.net, ip_batch)
+            data = self.test_data.data.float()
+            op_batch, loss = self.run_mini_batch(data)
 
-                test_loss += loss.item()
-                if self.data_to_img_func is not None and i == 0:
-                    # n = min(data.size(0), 8)
-                    n = 1
-                    self.save_matplotlib_comparison(n, 
-                        self.data_to_img_func(ip_batch[:n], n),
-                        self.data_to_img_func(op_batch[:n], n),
-                        filename='final_reconstruction',
-                        printHeader="Final Reconstruction")
+            test_loss += loss.item()
+            if self.data_to_img_func is not None:
+                batch_size = 1
+                for n in range(5):
+                    self.save_matplotlib_comparison(batch_size, 
+                        self.data_to_img_func(ip_batch[n], batch_size),
+                        self.data_to_img_func(op_batch[n], batch_size),
+                        filename='final_reconstruction_{}'.format(n),
+                        printHeader="Final Reconstruction For Test Image {}".format(n))
 
-        avg_loss = test_loss / len(self.test_loader.dataset)
+        avg_loss = test_loss / len(self.test_data.data)
         writeline(builder, "Average Test Loss: {:.3f}".format(avg_loss))
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())

@@ -20,13 +20,20 @@ def vae_loss_adapter(net, ip_batch):
     recon_batch, mu, logvar = net(ip_batch)
     return recon_batch, vae_loss(recon_batch, ip_batch, mu, logvar)
 
-def mse_loss_adapter(net, ip_batch):
+def mse_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
     op_batch = net(ip_batch)
-    return op_batch, F.mse_loss(ip_batch, op_batch)
+    return op_batch, F.mse_loss(labels, op_batch)
 
-def smooth_l1_loss_adapter(net, ip_batch):
+def smooth_l1_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
     op_batch = net(ip_batch)
-    return op_batch, F.smooth_l1_loss(ip_batch, op_batch)
+    return op_batch, F.smooth_l1_loss(labels, op_batch)
+
+def l1_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
+    op_batch = net(ip_batch)
+    return op_batch, F.l1_loss(labels, op_batch)
 
 def vae_smooth_l1_loss_adapter(net, ip_batch):
     op_batch, _, _ = net(ip_batch)

@@ -13,3 +13,12 @@ Next 3 are corresponding values of first 3 in next time step.
 The trajectories are generated using only 8 available actions : 
 UP, DOWN, RIGHT, LEFT and the 4 diagnonals between them with uniform step size along
 x or y direction (-1 or +1).
+
+------------------
+
+First a start and goal are generated randomly within the 32 x 32 square and a simple
+straight forward path is generated using the above actions. 
+
+Since there are no obstacles, first the robot moves in one of the diagonal directions
+towards the goal until it aligns in a horizontal / vertical line and then travels along
+that line to reach the goal.
