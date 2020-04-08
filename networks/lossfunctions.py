@@ -35,6 +35,22 @@ def l1_loss_adapter(net, ip_batch, labels=None):
     op_batch = net(ip_batch)
     return op_batch, F.l1_loss(labels, op_batch)
 
+def control_ce_loss_adapter(net, ip_batch, labels=None):
+    '''
+    dim(labels) = dim(op_batch) = (batch_size, 6)
+    loss is calculated separately for first 3 and second half
+    '''
+    labels = ip_batch if labels is None else labels
+    op_batch = net(ip_batch)
+    loss = F.cross_entropy(op_batch[:, :3], labels[:, 0])
+    loss += F.cross_entropy(op_batch[:, 3:], labels[:, 1])
+    return op_batch, loss
+
+def bce_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
+    op_batch = net(ip_batch)
+    return op_batch, F.binary_cross_entropy(op_batch, labels)
+
 def vae_smooth_l1_loss_adapter(net, ip_batch):
     op_batch, _, _ = net(ip_batch)
     return op_batch, F.smooth_l1_loss(ip_batch, op_batch)

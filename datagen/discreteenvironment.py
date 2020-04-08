@@ -6,9 +6,10 @@ class DiscreteEnvironment:
         self.size = size
         self.robot_hl = 2
 
-    def generateTrajectory(self):
-        start = np.random.randint(self.robot_hl, self.size-self.robot_hl, size=(2), dtype=int)
-        goal = np.random.randint(self.robot_hl, self.size-self.robot_hl, size=(2), dtype=int)
+    def generateTrajectory(self, start=None, goal=None):
+        if start is None:
+            start = np.random.randint(self.robot_hl, self.size-self.robot_hl, size=(2), dtype=int)
+            goal = np.random.randint(self.robot_hl, self.size-self.robot_hl, size=(2), dtype=int)
 
         diff = goal - start
         if np.abs(diff[0]) < np.abs(diff[1]):
