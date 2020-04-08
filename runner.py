@@ -14,8 +14,10 @@ from datetime import datetime
 from utils import writeline
 
 class ExptRunner:
-    def __init__(self, expt_prefix, net, train_data, test_data,
-                    data_adapter_func, loss_adapter_func, data_to_label_adapter, data_to_img_func=None):
+    def __init__(self, expt_prefix, net, 
+                    train_data, test_data,
+                    data_adapter_func, loss_adapter_func, data_to_label_adapter,
+                    data_to_img_func=None, device=None):
         self.expt_prefix = expt_prefix
         self.net = net
         self.train_data = train_data
@@ -24,6 +26,7 @@ class ExptRunner:
         self.loss_adapter_func = loss_adapter_func
         self.data_to_img_func = data_to_img_func
         self.data_to_label_adapter = data_to_label_adapter
+        self.device = device
         self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
         self.writer = SummaryWriter(self.log_folder)
@@ -65,6 +68,7 @@ class ExptRunner:
     def run_mini_batch(self, miniBatch):
         ip_batch = self.data_adapter_func(miniBatch)
         ground_truth = self.data_to_label_adapter(miniBatch)
+        ground_truth = ground_truth.to(self.device)
         op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
         return op_batch, loss
 

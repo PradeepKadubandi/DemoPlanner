@@ -27,3 +27,17 @@ class Dense(nn.Module):
     def forward(self, data_batch):
         op = self.net(data_batch)
         return op
+
+class DenseForPolicy(nn.Module):
+    def __init__(self, layer_dims):
+        super(DenseForPolicy, self).__init__()
+        self.dense = Dense(layer_dims[:-1], use_last_act=False)
+        self.x = nn.Linear(layer_dims[-2], layer_dims[-1])
+        self.y = nn.Linear(layer_dims[-2], layer_dims[-1])
+
+    def forward(self, data_batch):
+        op = self.dense(data_batch)
+        op_x = F.softmax(self.x(op))
+        op_y = F.softmax(self.y(op))
+        return torch.cat((op_x, op_y), axis=1)
+
