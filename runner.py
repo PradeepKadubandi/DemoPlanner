@@ -29,9 +29,11 @@ class ExptRunner:
         self.device = device
         self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
+        self.checkpoint_file = self.log_folder + '/train_checkpoint.tar'
         self.writer = SummaryWriter(self.log_folder)
         self.prev_offset = 0
-        self.train_loader = DataLoader(train_data, batch_size=100, shuffle=True)
+        self.train_mini_batch_size = 100
+        self.train_loader = DataLoader(train_data, batch_size=self.train_mini_batch_size, shuffle=True)
 
     def log_network_details(self):
         header1 = StringIO()
@@ -91,6 +93,8 @@ class ExptRunner:
         builder = StringIO()
         running_loss = 0.0
         eval_freq = 1000
+        if self.train_data.data.size()[0] < eval_freq * self.train_mini_batch_size:
+            eval_freq = 100
         for epoch in range(epochs):
             writeline(builder, '{}: Epoch {} Begin'.format(datetime.now(), epoch))
             for i, data in enumerate(self.train_loader, 0):
@@ -138,7 +142,16 @@ class ExptRunner:
             f.write(builder.getvalue())
         builder.close()
 
-        torch.save(self.net.state_dict(), self.log_folder + '/autoenc.pth')
+        torch.save({
+            'epoch': self.prev_offset,
+            'model': self.net,
+            'state_dict': self.net.state_dict(),
+            'optim': optimizer,
+            'input_adapter': self.data_adapter_func,
+            'label_adapter': self.data_to_label_adapter,
+            'loss_adapter': self.loss_adapter_func,
+            'image_adapter': self.data_to_img_func,
+        }, self.checkpoint_file)
 
     def save_matplotlib_comparison(self, rows, ip_imgs, op_imgs, filename,
                                     cmapstr='gray', shouldShow=True, printHeader=None):
@@ -175,8 +188,8 @@ class ExptRunner:
         with torch.no_grad():
             data = self.test_data.data.float()
             op_batch, loss = self.run_mini_batch(data)
-
             test_loss += loss.item()
+
             if self.data_to_img_func is not None:
                 batch_size = 1
                 for n in range(5):
@@ -187,7 +200,7 @@ class ExptRunner:
                         printHeader="Final Reconstruction For Test Image {}".format(n))
 
         avg_loss = test_loss / len(self.test_data.data)
-        writeline(builder, "Average Test Loss: {:.3f}".format(avg_loss))
+        writeline(builder, "Average Test Loss: {}".format(avg_loss))
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())
         builder.close()

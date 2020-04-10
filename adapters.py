@@ -29,6 +29,22 @@ def dynamics_gradient_ground_truth_adapter(data):
     diff = data[:, xtplus_begin:xtplus_begin+x_dim] - data[:, :x_dim]
     return (diff + 1.0) / 2
 
+def dynamics_grad_gt_X_unscaled(data):
+    diff = data[:, xtplus_begin:xtplus_begin+1] - data[:, :1]
+    return diff
+
+def dynamics_grad_gt_Y_unscaled(data):
+    diff = data[:, xtplus_begin+1:xtplus_begin+2] - data[:, 1:2]
+    return diff
+
+def dynamics_grad_gt_X_scaled(data):
+    diff = data[:, xtplus_begin:xtplus_begin+1] - data[:, :1]
+    return (diff + 1.0) / 2
+
+def dynamics_grad_gt_Y_scaled(data):
+    diff = data[:, xtplus_begin+1:xtplus_begin+2] - data[:, 1:2]
+    return (diff + 1.0) / 2
+
 def policy_input_adapter(data):
     return data[:, :x_dim+y_dim] / 32
 
