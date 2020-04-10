@@ -33,10 +33,22 @@ def policy_input_adapter(data):
     return data[:, :x_dim+y_dim] / 32
 
 def policy_groud_truth_adapter(data):
+    '''
+    Useful for regression loss
+    '''
+    return data[:, u_begin:u_begin+u_dim]
+
+def policy_groud_truth_class_adapter(data):
+    '''
+    Useful for cross entropy loss
+    '''
     u = torch.tensor(data[:, u_begin:u_begin+u_dim] + 1.0, dtype=torch.long).detach()
     return u
 
 def policy_groud_truth_one_hot_adapter(data):
+    '''
+    Useful for binary cross entropy loss
+    '''
     u = torch.tensor(data[:, u_begin:u_begin+u_dim] + 1.0, dtype=torch.long).detach()
     oh = F.one_hot(u, num_classes=3)
     return oh.reshape(u.size()[0], -1)

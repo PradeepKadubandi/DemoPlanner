@@ -26,7 +26,7 @@ class ReportResults:
         return op_batch, loss
 
     def build_net(self, rootdir='runs'):
-        for filename in glob.iglob(rootdir + '/**/*.pth', recursive=True):
+        for filename in sorted(glob.iglob(rootdir + '/**/*.pth', recursive=True)):
             folder = os.path.basename(os.path.dirname(filename))
             parts = folder.split('-')
             netname = parts[7]
