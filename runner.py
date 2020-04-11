@@ -31,7 +31,6 @@ class ExptRunner:
         self.log_folder = 'runs/' + self.expt_name
         self.checkpoint_file = self.log_folder + '/train_checkpoint.tar'
         self.writer = SummaryWriter(self.log_folder)
-        self.prev_offset = 0
         self.train_mini_batch_size = 100
         self.train_loader = DataLoader(train_data, batch_size=self.train_mini_batch_size, shuffle=True)
 
@@ -74,21 +73,19 @@ class ExptRunner:
         op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
         return op_batch, loss
 
-    def train(self, epochs, resume_previous_training=False, shouldShowReconstruction=False):
+    def train(self, epochs, shouldShowReconstruction=False):
         '''
         For now, resume_previous_training can be set to True immediately after one training run
         and should use the same Trainer object with more epochs, could consider better ways in future.
         '''
         start = time.time()
         self.net.train()
-        if not resume_previous_training:
-            self.prev_offset = 0
-            self.log_network_details()
+        self.log_network_details()
 
         optimizer = optim.Adam(self.net.parameters())
         # For evaluating while training
-        train_data_float = self.train_data.data[:10000].float()
-        test_data_float = self.test_data.data.float()
+        eval_train_data = self.train_data.data[:10000]
+        eval_test_data = self.test_data.data
 
         builder = StringIO()
         running_loss = 0.0
@@ -98,7 +95,6 @@ class ExptRunner:
         for epoch in range(epochs):
             writeline(builder, '{}: Epoch {} Begin'.format(datetime.now(), epoch))
             for i, data in enumerate(self.train_loader, 0):
-                data = data.float()
                 optimizer.zero_grad()
 
                 op_batch, loss = self.run_mini_batch(data)
@@ -108,18 +104,18 @@ class ExptRunner:
                 
                 running_loss += loss.item()
                 if i % eval_freq == (eval_freq-1):
-                    index = (self.prev_offset+epoch) * len(self.train_loader) + i
+                    index = epoch * len(self.train_loader) + i
                     writeline(builder, '{}: Eval at Index {} Begin'.format(datetime.now(), index))
                     avg_loss = running_loss / eval_freq
-                    writeline(builder, '[%d, %5d] Average Minibatch loss: %.3f' % (self.prev_offset+epoch+1, i+1, avg_loss))
+                    writeline(builder, '[%d, %5d] Average Minibatch loss: %.3f' % (epoch+1, i+1, avg_loss))
                     self.writer.add_scalar('training_loss', avg_loss, index)
                     running_loss = 0.0
 
                     with torch.no_grad():
-                        train_out, train_loss = self.run_mini_batch(train_data_float)
+                        train_out, train_loss = self.run_mini_batch(eval_train_data)
                         writeline(builder, 'MinibatchIndex {}: Training Loss (Max 10000 rows): {}'.format(index, train_loss))
 
-                        test_out, test_loss = self.run_mini_batch(test_data_float)
+                        test_out, test_loss = self.run_mini_batch(eval_test_data)
                         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
                     if self.data_to_img_func is not None:
@@ -135,7 +131,6 @@ class ExptRunner:
 
                     writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
 
-        self.prev_offset += epochs
         writeline(builder, 'Total time taken for training {} sec.'.format(time.time() - start))
 
         with open(self.log_folder + '/train_log.txt', 'w') as f:
@@ -143,7 +138,7 @@ class ExptRunner:
         builder.close()
 
         torch.save({
-            'epoch': self.prev_offset,
+            'epoch': epochs,
             'model': self.net,
             'state_dict': self.net.state_dict(),
             'optim': optimizer,
@@ -186,7 +181,7 @@ class ExptRunner:
         builder = StringIO()
         test_loss = 0.0
         with torch.no_grad():
-            data = self.test_data.data.float()
+            data = self.test_data.data
             op_batch, loss = self.run_mini_batch(data)
             test_loss += loss.item()
 

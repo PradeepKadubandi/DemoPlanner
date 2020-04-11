@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
-import glob
 
 import torch
 import torch.nn as nn
@@ -29,10 +28,6 @@ class ReportResults:
         ground_truth = ground_truth.to(self.device)
         op_batch, loss = self.loss_adapter_func(net, ip_batch, ground_truth)
         return ip_batch, op_batch, loss
-
-    def enumerate_files(self, rootdir='runs', extension='tar'):
-        for filename in sorted(glob.iglob(rootdir + '/**/*.' + extension, recursive=True)):
-            yield filename
 
     def __load_net(self):
         net = self.checkpoint['model'].to(self.device)
