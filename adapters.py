@@ -11,11 +11,22 @@ img_size = img_res * img_res
 u_begin = 2*x_dim + img_size
 xtplus_begin = 2*x_dim + img_size + u_dim
 
+def scale_inputs(data):
+    maxim = torch.max(data)
+    minim = torch.min(data)
+    return (data-minim) / (maxim-minim)
+
 def demopl_v1_data_adapter(data):
     return data[:, 2*x_dim:2*x_dim+img_size] / 255
 
 def demopl_v1_data_to_img(data, batch_size):
     return 255 * data.view(batch_size, img_res, img_res)
+
+def identity_adapter(data):
+    return data
+
+def Xt_scaled_adapter(data):
+    return data[:, :2] / 32
 
 def dynamics_input_adapter(data):
     normalized_xt = data[:, :2] / 32
