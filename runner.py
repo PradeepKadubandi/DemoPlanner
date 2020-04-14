@@ -68,10 +68,10 @@ class ExptRunner:
 
     def run_mini_batch(self, miniBatch):
         ip_batch = self.data_adapter_func(miniBatch)
-        ground_truth = self.data_to_label_adapter(miniBatch)
+        ground_truth = self.data_to_label_adapter(miniBatch) if self.data_to_label_adapter else ip_batch
         ground_truth = ground_truth.to(self.device)
         op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
-        return op_batch, loss
+        return ip_batch, op_batch, loss
 
     def train(self, epochs, shouldShowReconstruction=False):
         '''
@@ -97,7 +97,7 @@ class ExptRunner:
             for i, data in enumerate(self.train_loader, 0):
                 optimizer.zero_grad()
 
-                op_batch, loss = self.run_mini_batch(data)
+                _, op_batch, loss = self.run_mini_batch(data)
                 
                 loss.backward()
                 optimizer.step()
@@ -112,10 +112,10 @@ class ExptRunner:
                     running_loss = 0.0
 
                     with torch.no_grad():
-                        train_out, train_loss = self.run_mini_batch(eval_train_data)
+                        _, train_out, train_loss = self.run_mini_batch(eval_train_data)
                         writeline(builder, 'MinibatchIndex {}: Training Loss (Max 10000 rows): {}'.format(index, train_loss))
 
-                        test_out, test_loss = self.run_mini_batch(eval_test_data)
+                        test_input, test_out, test_loss = self.run_mini_batch(eval_test_data)
                         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
                     if self.data_to_img_func is not None:
@@ -182,7 +182,7 @@ class ExptRunner:
         test_loss = 0.0
         with torch.no_grad():
             data = self.test_data.data
-            op_batch, loss = self.run_mini_batch(data)
+            ip_batch, op_batch, loss = self.run_mini_batch(data)
             test_loss += loss.item()
 
             if self.data_to_img_func is not None:

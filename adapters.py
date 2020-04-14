@@ -7,18 +7,22 @@ y_dim = 2
 u_dim = 2
 img_res = 32
 img_size = img_res * img_res
+max_pixel = 255
 
 u_begin = 2*x_dim + img_size
 xtplus_begin = 2*x_dim + img_size + u_dim
 
-def demopl_v1_data_adapter(data):
-    return data[:, 2*x_dim:2*x_dim+img_size] / 255
-
 def demopl_v1_data_to_img(data, batch_size):
-    return 255 * data.view(batch_size, img_res, img_res)
+    return max_pixel * data.view(batch_size, img_res, img_res)
 
 def identity_adapter(data):
     return data
+
+def It_unscaled_adapter(data):
+    return data[:, 2*x_dim:2*x_dim+img_size]
+
+def It_scaled_adapter(data):
+    return data[:, 2*x_dim:2*x_dim+img_size] / max_pixel
 
 def Xt_unscaled_adapter(data):
     return data[:, :x_dim]
