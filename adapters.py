@@ -11,11 +11,6 @@ img_size = img_res * img_res
 u_begin = 2*x_dim + img_size
 xtplus_begin = 2*x_dim + img_size + u_dim
 
-def scale_inputs(data):
-    maxim = torch.max(data)
-    minim = torch.min(data)
-    return (data-minim) / (maxim-minim)
-
 def demopl_v1_data_adapter(data):
     return data[:, 2*x_dim:2*x_dim+img_size] / 255
 
@@ -25,25 +20,37 @@ def demopl_v1_data_to_img(data, batch_size):
 def identity_adapter(data):
     return data
 
-def Xt_scaled_adapter(data):
-    return data[:, :x_dim] / 32
-
 def Xt_unscaled_adapter(data):
     return data[:, :x_dim]
+
+def Xt_scaled_adapter(data):
+    return data[:, :x_dim] / img_res
 
 def Xtplus_unscaled_adapter(data):
     return data[:,  xtplus_begin:xtplus_begin+x_dim]
 
+def Xtplus_scaled_adapter(data):
+    return data[:,  xtplus_begin:xtplus_begin+x_dim] / img_res
+
+def Yt_unscaled_adapter(data):
+    return data[:, x_dim:x_dim+y_dim]
+
 def Yt_scaled_adapter(data):
-    return data[:, x_dim:x_dim+y_dim] / 32
+    return data[:, x_dim:x_dim+y_dim] / img_res
+
+def Ut_unscaled_adapter(data):
+    return data[:, u_begin:u_begin+u_dim]
+
+def Ut_scaled_adapter(data):
+    return (data[:, u_begin:u_begin+u_dim] + 1.0) / 2
 
 def dynamics_input_adapter(data):
     scaled_xt = Xt_scaled_adapter(data)
-    scaled_ut = (data[:, u_begin:u_begin+u_dim] + 1.0) / 2
+    scaled_ut = Ut_scaled_adapter(data)
     return torch.cat((scaled_xt, scaled_ut), axis=1)
 
 def dynamics_ground_truth_adapter(data):
-    return  data[:, xtplus_begin:xtplus_begin+x_dim] / 32
+    return  data[:, xtplus_begin:xtplus_begin+x_dim] / img_res
 
 def dynamics_gradient_ground_truth_adapter(data):
     diff = data[:, xtplus_begin:xtplus_begin+x_dim] - data[:, :x_dim]
@@ -66,7 +73,7 @@ def dynamics_grad_gt_Y_scaled(data):
     return (diff + 1.0) / 2
 
 def policy_input_adapter(data):
-    return data[:, :x_dim+y_dim] / 32
+    return data[:, :x_dim+y_dim] / img_res
 
 def policy_groud_truth_adapter(data):
     '''
