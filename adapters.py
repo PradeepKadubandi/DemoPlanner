@@ -26,12 +26,21 @@ def identity_adapter(data):
     return data
 
 def Xt_scaled_adapter(data):
-    return data[:, :2] / 32
+    return data[:, :x_dim] / 32
+
+def Xt_unscaled_adapter(data):
+    return data[:, :x_dim]
+
+def Xtplus_unscaled_adapter(data):
+    return data[:,  xtplus_begin:xtplus_begin+x_dim]
+
+def Yt_scaled_adapter(data):
+    return data[:, x_dim:x_dim+y_dim] / 32
 
 def dynamics_input_adapter(data):
-    normalized_xt = data[:, :2] / 32
-    normalized_ut = (data[:, u_begin:u_begin+u_dim] + 1.0) / 2
-    return torch.cat((normalized_xt, normalized_ut), axis=1)
+    scaled_xt = Xt_scaled_adapter(data)
+    scaled_ut = (data[:, u_begin:u_begin+u_dim] + 1.0) / 2
+    return torch.cat((scaled_xt, scaled_ut), axis=1)
 
 def dynamics_ground_truth_adapter(data):
     return  data[:, xtplus_begin:xtplus_begin+x_dim] / 32
