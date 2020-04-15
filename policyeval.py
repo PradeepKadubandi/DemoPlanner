@@ -60,3 +60,19 @@ class PolicyEvaluator():
         step_error = self.distance_func(xhat_tplus, xtplus)
         goal_error = self.distance_func(xhat_tplus[-1], xtplus[-1])
         return goal_error, step_error, xhat_tplus, xtplus, ut_pred, dyn_pred
+
+def eval_policy_accuracy(policy, data, device):
+    ip_batch = policy_input_adapter(data)
+    ground_truth = policy_groud_truth_adapter(data).to(device)
+    with torch.no_grad():
+        op_batch = policy(ip_batch)
+    op_xt = torch.argmax(op_batch[:, :3], dim=1, keepdims=True)
+    op_yt = torch.argmax(op_batch[:, 3:], dim=1, keepdims=True)
+    op_ut = torch.cat((op_xt, op_yt), dim=1).float() - 1.0 # ground truth is [-1 , 1] while argmax op is [0, 2]
+    correct_directions = torch.sum(torch.where(ground_truth==op_ut, torch.ones_like(ground_truth), torch.zeros_like(ground_truth)), dim=1)
+    # print (correct_directions.shape)
+    # print (correct_directions[:10])
+    correct_labels = torch.where(correct_directions == 2, torch.ones_like(correct_directions), torch.zeros_like(correct_directions))
+    # print (correct_labels.shape)
+    accuracy = torch.sum(correct_labels).float() / len(ground_truth)
+    return accuracy
