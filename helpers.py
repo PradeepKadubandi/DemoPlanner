@@ -24,7 +24,7 @@ class ReportResults:
 
     def run_mini_batch(self, net, miniBatch):
         ip_batch = self.data_adapter_func(miniBatch)
-        ground_truth = self.data_to_label_adapter(miniBatch)
+        ground_truth = self.data_to_label_adapter(miniBatch) if self.data_to_label_adapter else ip_batch
         ground_truth = ground_truth.to(self.device)
         op_batch, loss = self.loss_adapter_func(net, ip_batch, ground_truth)
         return ip_batch, op_batch, loss
