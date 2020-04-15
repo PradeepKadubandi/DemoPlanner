@@ -51,11 +51,12 @@ class PolicyEvaluator():
         return xhat_tplus, ut_pred, dyn_pred
 
     def eval_single_trajectory(self, trajectory):
-        xtplus = Xtplus_unscaled_adapter(trajectory)
-        xhat_tplus = torch.zeros_like(xtplus)
-        x0 = Xt_scaled_adapter(trajectory[:1])
-        yt = Yt_scaled_adapter(trajectory[:1])
-        xhat_tplus, ut_pred, dyn_pred = self.rollout(x0, yt, len(trajectory))
+        with torch.no_grad():
+            xtplus = Xtplus_unscaled_adapter(trajectory)
+            xhat_tplus = torch.zeros_like(xtplus)
+            x0 = Xt_scaled_adapter(trajectory[:1])
+            yt = Yt_scaled_adapter(trajectory[:1])
+            xhat_tplus, ut_pred, dyn_pred = self.rollout(x0, yt, len(trajectory))
         step_error = self.distance_func(xhat_tplus, xtplus)
         goal_error = self.distance_func(xhat_tplus[-1], xtplus[-1])
         return goal_error, step_error, xhat_tplus, xtplus, ut_pred, dyn_pred

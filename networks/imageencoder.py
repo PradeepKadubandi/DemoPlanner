@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 
 class ImageEncoder(nn.Module):
-    def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False):
+    def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False, addFlatten=False):
         '''
         If useMaxPool is set to True, Max pooling is used to reduce
         the image dims instead of stride = 2.
@@ -21,6 +21,8 @@ class ImageEncoder(nn.Module):
             if (useMaxPool):
                 layers[prefix + '_maxpool' + str(i)] = nn.MaxPool2d(2, stride=2)
             pr_ch = layers_channels[i]
+        if addFlatten:
+            layers[prefix + '_flat'] = nn.Flatten()
         self.net = nn.Sequential(layers)
 
     def forward(self, data):

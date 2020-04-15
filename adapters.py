@@ -24,6 +24,12 @@ def It_unscaled_adapter(data):
 def It_scaled_adapter(data):
     return data[:, 2*x_dim:2*x_dim+img_size] / max_pixel
 
+def It_unscaled_HW_adapter(data):
+    return data[:, 2*x_dim:2*x_dim+img_size].view([-1, 1, img_res, img_res])
+
+def It_scaled_HW_adapter(data):
+    return data[:, 2*x_dim:2*x_dim+img_size].view([-1, 1, img_res, img_res]) / max_pixel
+
 def Xt_unscaled_adapter(data):
     return data[:, :x_dim]
 
@@ -47,6 +53,12 @@ def Ut_unscaled_adapter(data):
 
 def Ut_scaled_adapter(data):
     return (data[:, u_begin:u_begin+u_dim] + 1.0) / 2
+
+def XtYt_unscaled_adapter(data):
+    return data[:, :x_dim+y_dim]
+
+def XtYt_scaled_adapter(data):
+    return data[:, :x_dim+y_dim] / img_res
 
 def dynamics_input_adapter(data):
     scaled_xt = Xt_scaled_adapter(data)
