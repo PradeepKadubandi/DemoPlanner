@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from collections import OrderedDict
+from networks.reshape import Reshape
 
 class ImageDecoder(nn.Module):
     def __init__(self, layers_channels, output_channels, prefix, addFlatten=True, useSigmoid=True):
@@ -26,4 +28,14 @@ class ImageDecoder(nn.Module):
 
     def forward(self, data):
         return self.net(data)
+
+class ImageDecoderFlatInput(ImageDecoder):
+    def __init__(self, z_dim, layers_channels, output_channels, prefix, addFlatten=True, useSigmoid=True):
+        super(ImageDecoderFlatInput, self).__init__(layers_channels, output_channels, prefix, addFlatten, useSigmoid)
+        self.z_dim = z_dim
+        img_dim = int(np.sqrt((z_dim / layers_channels[0])))
+        self.reshapeInput = Reshape(-1, layers_channels[0], img_dim, img_dim)
+
+    def forward(self, data):
+        return self.net(self.reshapeInput(data))
 
