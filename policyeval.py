@@ -74,5 +74,5 @@ def eval_policy_accuracy(policy, data, device):
     # print (correct_directions[:10])
     correct_labels = torch.where(correct_directions == 2, torch.ones_like(correct_directions), torch.zeros_like(correct_directions))
     # print (correct_labels.shape)
-    accuracy = torch.sum(correct_labels).float() / len(ground_truth)
+    accuracy = 100 * torch.sum(correct_labels).float() / len(ground_truth)
     return accuracy
