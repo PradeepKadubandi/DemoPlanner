@@ -71,9 +71,9 @@ class ExptRunner:
         ground_truth = self.data_to_label_adapter(miniBatch) if self.data_to_label_adapter else ip_batch
         ground_truth = ground_truth.to(self.device)
         op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
-        return ip_batch, op_batch, loss
+        return ip_batch, ground_truth, op_batch, loss
 
-    def train(self, epochs, shouldShowReconstruction=False):
+    def train(self, epochs, optimizer=None, shouldShowReconstruction=False):
         '''
         For now, resume_previous_training can be set to True immediately after one training run
         and should use the same Trainer object with more epochs, could consider better ways in future.
@@ -82,7 +82,7 @@ class ExptRunner:
         self.net.train()
         self.log_network_details()
 
-        optimizer = optim.Adam(self.net.parameters())
+        optimizer = optim.Adam(self.net.parameters()) if optimizer is None else optimizer
         # For evaluating while training
         eval_train_data = self.train_data.data[:10000]
         eval_test_data = self.test_data.data
@@ -97,7 +97,7 @@ class ExptRunner:
             for i, data in enumerate(self.train_loader, 0):
                 optimizer.zero_grad()
 
-                _, op_batch, loss = self.run_mini_batch(data)
+                _, _, op_batch, loss = self.run_mini_batch(data)
                 
                 loss.backward()
                 optimizer.step()
@@ -112,22 +112,22 @@ class ExptRunner:
                     running_loss = 0.0
 
                     with torch.no_grad():
-                        _, train_out, train_loss = self.run_mini_batch(eval_train_data)
+                        _, _, train_out, train_loss = self.run_mini_batch(eval_train_data)
                         writeline(builder, 'MinibatchIndex {}: Training Loss (Max 10000 rows): {}'.format(index, train_loss))
 
-                        test_input, test_out, test_loss = self.run_mini_batch(eval_test_data)
+                        test_input, test_label, test_out, test_loss = self.run_mini_batch(eval_test_data)
                         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
-                    if self.data_to_img_func is not None:
-                        n = 1
-                        filename='reconstruction_at_index_{}'.format(index)
-                        printHeader="Reconstruction At Index {}".format(index) if shouldShowReconstruction else None
-                        self.save_matplotlib_comparison(n, 
-                            self.data_to_img_func(test_input[:n], n),
-                            self.data_to_img_func(test_out[:n], n),
-                            filename=filename,
-                            printHeader=printHeader,
-                            shouldShow=shouldShowReconstruction)
+                    # if self.data_to_img_func is not None:
+                    #     n = 1
+                    #     filename='reconstruction_at_index_{}'.format(index)
+                    #     printHeader="Reconstruction At Index {}".format(index) if shouldShowReconstruction else None
+                    #     self.save_matplotlib_comparison(n, 
+                    #         self.data_to_img_func(test_label[:n], n),
+                    #         self.data_to_img_func(test_out[:n], n),
+                    #         filename=filename,
+                    #         printHeader=printHeader,
+                    #         shouldShow=shouldShowReconstruction)
 
                     writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
 
@@ -142,6 +142,7 @@ class ExptRunner:
             'model': self.net,
             'state_dict': self.net.state_dict(),
             'optim': optimizer,
+            'optm_state_dict': optimizer.state_dict(),
             'input_adapter': self.data_adapter_func,
             'label_adapter': self.data_to_label_adapter,
             'loss_adapter': self.loss_adapter_func,
@@ -175,27 +176,25 @@ class ExptRunner:
         fig.savefig(self.log_folder + '/' + filename + '.png')
         self.writer.add_figure(filename, fig)
 
-
     def test(self):
         self.net.eval()
         builder = StringIO()
         test_loss = 0.0
         with torch.no_grad():
             data = self.test_data.data
-            ip_batch, op_batch, loss = self.run_mini_batch(data)
+            ip_batch, ground_truth, op_batch, loss = self.run_mini_batch(data)
             test_loss += loss.item()
 
             if self.data_to_img_func is not None:
                 batch_size = 1
                 for n in range(5):
                     self.save_matplotlib_comparison(batch_size, 
-                        self.data_to_img_func(ip_batch[n], batch_size),
+                        self.data_to_img_func(ground_truth[n], batch_size),
                         self.data_to_img_func(op_batch[n], batch_size),
                         filename='final_reconstruction_{}'.format(n),
                         printHeader="Final Reconstruction For Test Image {}".format(n))
 
-        avg_loss = test_loss / len(self.test_data.data)
-        writeline(builder, "Average Test Loss: {}".format(avg_loss))
+        writeline(builder, "Test Loss: {}".format(test_loss))
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())
         builder.close()
