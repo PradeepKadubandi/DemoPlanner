@@ -12,7 +12,7 @@ from networks.lossfunctions import *
 class ReportResults:
     def __init__(self, testData, trainData, device, checkpointFile, useL1Loss=False):
         self.checkpoint_file = checkpointFile
-        self.checkpoint = torch.load(checkpointFile)
+        self.checkpoint = torch.load(checkpointFile, map_location=device)
         self.map_netname_net = None
         self.testData = testData
         self.trainData = trainData

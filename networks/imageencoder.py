@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from collections import OrderedDict
+from networks.reshape import Reshape
 
 class ImageEncoder(nn.Module):
     def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False, addFlatten=False):
@@ -27,4 +28,12 @@ class ImageEncoder(nn.Module):
 
     def forward(self, data):
         return self.net(data)
+
+class ImageEncoderFlatInput(ImageEncoder):
+    def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False, addFlatten=False):
+        super(ImageEncoderFlatInput, self).__init__(input_channels, layers_channels, prefix, useMaxPool, addFlatten)
+        self.reshapeInput = Reshape(-1, input_channels, 32, 32)
+
+    def forward(self, data):
+        return self.net(self.reshapeInput(data))
 
