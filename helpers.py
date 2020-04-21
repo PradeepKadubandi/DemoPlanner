@@ -59,7 +59,7 @@ class ReportResults:
             for i in range(rows):
                 ip_batch, op_batch, loss = self.run_mini_batch(self.net,  self.testData[i:i+1]) #Used range expression to force mini-batch dimension
                 print('datapoint', str(i), 'test error', loss.item())
-                if ip_batch[0].size()[0] == 1024:
+                if op_batch[0].size()[0] == 1024:
                     ip_batch = ip_batch.cpu()
                     op_batch = op_batch.cpu()
                     plt.imshow(ip_batch[0].reshape(32,32), cmap=plt.get_cmap("gray"), vmin=0, vmax=1)
