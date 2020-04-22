@@ -143,20 +143,22 @@ class SpecialExptRunner(ExptRunnerBase):
         builder = StringIO()
         with torch.no_grad():
             for i, comb in self.combinations.items():
+                self.net.setNetworksForForward(*comb)
                 writeline(builder, '-------------------------------------------------------')
                 writeline(builder, '                Combination {}'.format(comb))
                 writeline(builder, '-------------------------------------------------------')
+                ip, gt = self.__adaptData(comb, self.test_data)
+                op = self.net(ip)
+                loss = crit(op, gt)
+                writeline(builder, 'Test Loss For Combination {}: {}'.format(comb, loss.item()))
                 for j in range(5):
-                    self.net.setNetworksForForward(*comb)
-                    ip, gt = self.__adaptData(comb, self.test_data[j:j+1, :])
-                    op = self.net(ip)
-                    loss = crit(op, gt)
+                    loss = crit(op[j], gt[j])
                     writeline(builder, 'Datapoint {} test error: {}'.format(j, loss.item()))
                     if comb[1] == 'I':
                         batch_size = 1
                         self.save_matplotlib_comparison(batch_size, 
-                            demopl_v1_data_to_img(gt, batch_size),
-                            demopl_v1_data_to_img(op, batch_size),
+                            demopl_v1_data_to_img(gt[j], batch_size),
+                            demopl_v1_data_to_img(op[j], batch_size),
                             filename='final_reconstruction_comb_{}_sample_{}'.format(i, j),
                             printHeader="Final Reconstruction For Test Image {} In Combination {}".format(j, i))
 
