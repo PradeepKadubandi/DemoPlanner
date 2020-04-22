@@ -111,3 +111,6 @@ def policy_groud_truth_one_hot_adapter(data):
     u = torch.tensor(data[:, u_begin:u_begin+u_dim] + 1.0, dtype=torch.long).detach()
     oh = F.one_hot(u, num_classes=3)
     return oh.reshape(u.size()[0], -1)
+
+def demopl_v1_filter_and_convert_to_image(data, batch_size):
+    return demopl_v1_data_to_img(It_scaled_adapter(data), batch_size)
