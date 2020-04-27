@@ -259,12 +259,10 @@ class SpecialExptRunner(ExptRunnerBase):
 class ExptRunner(ExptRunnerBase):
     def __init__(self, expt_prefix, net, 
                     train_data, test_data,
-                    data_adapter_func, loss_adapter_func, data_to_label_adapter,
-                    data_to_img_func=None, device=None):
+                    data_adapter_func, loss_adapter_func, data_to_label_adapter, device=None):
         super(ExptRunner, self).__init__(expt_prefix, net, train_data, test_data, device)
         self.data_adapter_func = data_adapter_func
         self.loss_adapter_func = loss_adapter_func
-        self.data_to_img_func = data_to_img_func
         self.data_to_label_adapter = data_to_label_adapter
 
     def run_mini_batch(self, miniBatch):
@@ -319,17 +317,6 @@ class ExptRunner(ExptRunnerBase):
                         test_input, test_label, test_out, test_loss = self.run_mini_batch(eval_test_data)
                         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
-                    # if self.data_to_img_func is not None:
-                    #     n = 1
-                    #     filename='reconstruction_at_index_{}'.format(index)
-                    #     printHeader="Reconstruction At Index {}".format(index) if shouldShowReconstruction else None
-                    #     self.save_matplotlib_comparison(n, 
-                    #         self.data_to_img_func(test_label[:n], n),
-                    #         self.data_to_img_func(test_out[:n], n),
-                    #         filename=filename,
-                    #         printHeader=printHeader,
-                    #         shouldShow=shouldShowReconstruction)
-
                     writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
 
         writeline(builder, 'Total time taken for training {} sec.'.format(time.time() - start))
@@ -350,21 +337,29 @@ class ExptRunner(ExptRunnerBase):
             'image_adapter': self.data_to_img_func,
         }, self.checkpoint_file)
 
-    def test(self):
+    def test(self, loss_adapter=None):
         self.net.eval()
         builder = StringIO()
         test_loss = 0.0
         with torch.no_grad():
             data = self.test_data.data
-            ip_batch, ground_truth, op_batch, loss = self.run_mini_batch(data)
+            ip_batch = self.data_adapter_func(data)
+            ground_truth = self.data_to_label_adapter(data) if self.data_to_label_adapter else ip_batch
+            ground_truth = ground_truth.to(self.device)
+            if loss_adapter:
+                op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
+            else:
+                op_batch = self.net(ip_batch)
+                loss = F.l1_loss(op_batch, ground_truth)
+
             test_loss += loss.item()
 
-            if self.data_to_img_func is not None:
+            if ground_truth.size()[1] == 1024:
                 batch_size = 1
                 for n in range(5):
                     self.save_matplotlib_comparison(batch_size, 
-                        self.data_to_img_func(ground_truth[n], batch_size),
-                        self.data_to_img_func(op_batch[n], batch_size),
+                        demopl_v1_data_to_img(ground_truth[n:n+1], batch_size),
+                        demopl_v1_data_to_img(op_batch[n], batch_size),
                         filename='final_reconstruction_{}'.format(n),
                         printHeader="Final Reconstruction For Test Image {}".format(n))
 
