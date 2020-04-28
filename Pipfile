@@ -11,6 +11,7 @@ matplotlib = "*"
 jupyter = "*"
 tensorboard = "*"
 pillow = "*"
+jupyter-nbextensions-configurator = "*"
 
 [requires]
 python_version = "3.6"

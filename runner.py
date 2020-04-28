@@ -16,13 +16,13 @@ from utils import writeline
 from adapters import *
 
 class ExptRunnerBase:
-    def __init__(self, expt_prefix, net,
+    def __init__(self, expt_prefix, net_func,
                  train_data, test_data, device=None):
         self.expt_prefix = expt_prefix
-        self.net = net
         self.train_data = train_data
         self.test_data = test_data
         self.device = device
+        self.net = net_func().to(device)
         self.expt_name = time.strftime('%m-%d-%H-%M-%S-') + expt_prefix
         self.log_folder = 'runs/' + self.expt_name
         self.checkpoint_file = self.log_folder + '/train_checkpoint.tar'
@@ -257,10 +257,10 @@ class SpecialExptRunner(ExptRunnerBase):
         self.eval_end_of_training()
 
 class ExptRunner(ExptRunnerBase):
-    def __init__(self, expt_prefix, net, 
+    def __init__(self, expt_prefix, net_func, 
                     train_data, test_data,
                     loss_adapter_func, data_adapter_func=None, data_to_label_adapter=None, device=None):
-        super(ExptRunner, self).__init__(expt_prefix, net, train_data, test_data, device)
+        super(ExptRunner, self).__init__(expt_prefix, net_func, train_data, test_data, device)
         self.data_adapter_func = data_adapter_func if data_adapter_func else identity_adapter
         self.loss_adapter_func = loss_adapter_func
         self.data_to_label_adapter = data_to_label_adapter
