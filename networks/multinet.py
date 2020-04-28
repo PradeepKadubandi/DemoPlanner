@@ -63,10 +63,8 @@ class MultiEncoderNet(nn.Module):
     def forward(self, data):
         It = It_scaled_adapter(data)
         Yt = XtYt_scaled_adapter(data)
-        outputs = torch.cat((
-            self.imgdec(self.imgenc(It)),
-            self.envdec(self.imgenc(It)),
-            self.imgdec(self.envenc(Yt)),
-            self.envdec(self.envenc(Yt)),
-        ), dim=1)
-        return outputs
+        I_to_I = self.imgdec(self.imgenc(It))
+        I_to_Y = self.envdec(self.imgenc(It))
+        Y_to_I = self.imgdec(self.envenc(Yt))
+        Y_to_Y = self.envdec(self.envenc(Yt))
+        return I_to_I, I_to_Y, Y_to_I, Y_to_Y

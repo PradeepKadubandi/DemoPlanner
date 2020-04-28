@@ -72,3 +72,27 @@ def ImageEnvEncoder_l1_loss_adapter(net, ip_batch, labels=None):
     z_img, z_env, I_recon, y_recon = net(ip_batch)
     loss = F.l1_loss(z_env, z_img) + F.l1_loss(I_recon, I) + F.l1_loss(y_recon, y)
     return I_recon, loss
+
+def MultiEncoderNet_l1_loss_adapter(net, data, labels=None, reduction='mean'):
+    labels = data if labels is None else labels
+    I = It_scaled_adapter(labels)
+    Y = XtYt_scaled_adapter(labels)
+    I_to_I, I_to_Y, Y_to_I, Y_to_Y = net(data)
+    if reduction == 'none':
+        loss = torch.cat((
+            F.l1_loss(I_to_I, I, reduction=reduction),
+            F.l1_loss(I_to_Y, Y, reduction=reduction),
+            F.l1_loss(Y_to_I, I, reduction=reduction),
+            F.l1_loss(Y_to_Y, Y, reduction=reduction)
+        ), dim=1)
+    else:
+        loss = F.l1_loss(I_to_I, I) + F.l1_loss(I_to_Y, Y) + F.l1_loss(Y_to_I, I) + F.l1_loss(Y_to_Y, Y)
+    return I_to_I, loss
+
+def MultiEncoderNet_mse_loss_adapter(net, data, labels=None):
+    labels = data if labels is None else labels
+    I = It_scaled_adapter(labels)
+    Y = XtYt_scaled_adapter(labels)
+    I_to_I, I_to_Y, Y_to_I, Y_to_Y = net(data)
+    loss = F.mse_loss(I_to_I, I) + F.mse_loss(I_to_Y, Y) + F.mse_loss(Y_to_I, I) + F.mse_loss(Y_to_Y, Y)
+    return I_to_I, loss

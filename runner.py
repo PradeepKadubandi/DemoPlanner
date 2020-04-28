@@ -259,9 +259,9 @@ class SpecialExptRunner(ExptRunnerBase):
 class ExptRunner(ExptRunnerBase):
     def __init__(self, expt_prefix, net, 
                     train_data, test_data,
-                    data_adapter_func, loss_adapter_func, data_to_label_adapter, device=None):
+                    loss_adapter_func, data_adapter_func=None, data_to_label_adapter=None, device=None):
         super(ExptRunner, self).__init__(expt_prefix, net, train_data, test_data, device)
-        self.data_adapter_func = data_adapter_func
+        self.data_adapter_func = data_adapter_func if data_adapter_func else identity_adapter
         self.loss_adapter_func = loss_adapter_func
         self.data_to_label_adapter = data_to_label_adapter
 
@@ -347,7 +347,7 @@ class ExptRunner(ExptRunnerBase):
             ground_truth = ground_truth.to(self.device)
             if loss_adapter:
                 op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
-                loss_unreduced = loss_adapter(op_batch, ground_truth, reduction='none')
+                _, loss_unreduced = loss_adapter(self.net, ip_batch, ground_truth, reduction='none')
             else:
                 op_batch = self.net(ip_batch)
                 loss = F.l1_loss(op_batch, ground_truth)
