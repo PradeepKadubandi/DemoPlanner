@@ -65,12 +65,19 @@ def ImageEnvEncoder_mse_loss_adapter(net, ip_batch, labels=None):
     loss = F.mse_loss(z_env, z_img) + F.mse_loss(I_recon, I) + F.mse_loss(y_recon, y)
     return I_recon, loss
 
-def ImageEnvEncoder_l1_loss_adapter(net, ip_batch, labels=None):
+def ImageEnvEncoder_l1_loss_adapter(net, ip_batch, labels=None, reduction='mean'):
     labels = ip_batch if labels is None else labels
     I = It_scaled_adapter(labels)
     y = XtYt_scaled_adapter(labels)
     z_img, z_env, I_recon, y_recon = net(ip_batch)
-    loss = F.l1_loss(z_env, z_img) + F.l1_loss(I_recon, I) + F.l1_loss(y_recon, y)
+    if reduction == 'none':
+        loss = torch.cat((
+            F.l1_loss(z_env, z_img, reduction=reduction),
+            F.l1_loss(I_recon, I, reduction=reduction),
+            F.l1_loss(y_recon, y, reduction=reduction),
+        ), dim=1)
+    else:
+        loss = F.l1_loss(z_env, z_img) + F.l1_loss(I_recon, I) + F.l1_loss(y_recon, y)
     return I_recon, loss
 
 def MultiEncoderNet_l1_loss_adapter(net, data, labels=None, reduction='mean'):
