@@ -45,8 +45,8 @@ class MultiEncoderNet(nn.Module):
         self.imgdec = ImageDecoderFlatInput(self.z_dim, list(reversed(imgLayers)), output_channels=1, prefix='ImgDec')
         self.envenc = Dense(envLayers, use_last_act=False, prefix='EnvEnc')
         self.envdec = Dense(list(reversed(envLayers)), last_act='sigmoid', prefix='EnvDec')
-        self.common = nn.Linear(self.z_dim, self.z_dim)
-        self.setNetworksForForward('I', 'I')
+        # self.common = nn.Linear(self.z_dim, self.z_dim)
+        # self.setNetworksForForward('I', 'I')
 
     def __set_requires_grad(self, net, val):
         for p in net.parameters():
@@ -61,7 +61,12 @@ class MultiEncoderNet(nn.Module):
             self.__set_requires_grad(net, True)
 
     def forward(self, data):
-        op = self.encoder(data)
-        op = self.common(op)
-        op = self.decoder(op)
-        return op
+        It = It_scaled_adapter(data)
+        Yt = XtYt_scaled_adapter(data)
+        outputs = torch.cat((
+            self.imgdec(self.imgenc(It)),
+            self.envdec(self.imgenc(It)),
+            self.imgdec(self.envenc(Yt)),
+            self.envdec(self.envenc(Yt)),
+        ), dim=1)
+        return outputs

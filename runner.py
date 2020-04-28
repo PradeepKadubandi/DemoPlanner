@@ -272,7 +272,7 @@ class ExptRunner(ExptRunnerBase):
         op_batch, loss = self.loss_adapter_func(self.net, ip_batch, ground_truth)
         return ip_batch, ground_truth, op_batch, loss
 
-    def train(self, epochs, optimizer=None, shouldShowReconstruction=False):
+    def train(self, epochs, optimizer_func=None, shouldShowReconstruction=False):
         '''
         For now, resume_previous_training can be set to True immediately after one training run
         and should use the same Trainer object with more epochs, could consider better ways in future.
@@ -281,7 +281,7 @@ class ExptRunner(ExptRunnerBase):
         self.net.train()
         self.log_network_details()
 
-        optimizer = optim.Adam(self.net.parameters()) if optimizer is None else optimizer
+        optimizer = optim.Adam(self.net.parameters()) if optimizer_func is None else optimizer_func(self.net)
         # For evaluating while training
         eval_train_data = self.train_data.data[:10000]
         eval_test_data = self.test_data.data
@@ -334,7 +334,6 @@ class ExptRunner(ExptRunnerBase):
             'input_adapter': self.data_adapter_func,
             'label_adapter': self.data_to_label_adapter,
             'loss_adapter': self.loss_adapter_func,
-            'image_adapter': self.data_to_img_func,
         }, self.checkpoint_file)
 
     def test(self, loss_adapter=None):
@@ -348,14 +347,32 @@ class ExptRunner(ExptRunnerBase):
             ground_truth = ground_truth.to(self.device)
             if loss_adapter:
                 op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
+                loss_unreduced = loss_adapter(op_batch, ground_truth, reduction='none')
             else:
                 op_batch = self.net(ip_batch)
                 loss = F.l1_loss(op_batch, ground_truth)
+                loss_unreduced = F.l1_loss(op_batch, ground_truth, reduction='none')
 
             test_loss += loss.item()
+            writeline(builder, "Test Loss: {}".format(test_loss))
+            loss_per_sample = torch.sum(loss_unreduced, dim=1) / loss_unreduced.size()[1]
+            best_sample = torch.argmin(loss_per_sample)
+            worst_sample = torch.argmax(loss_per_sample)
+            writeline(builder, 'Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample, loss_per_sample[best_sample]))
+            writeline(builder, 'Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample, loss_per_sample[worst_sample]))
 
             if ground_truth.size()[1] == 1024:
                 batch_size = 1
+                self.save_matplotlib_comparison(batch_size, 
+                    demopl_v1_data_to_img(ground_truth[best_sample:best_sample+1], batch_size),
+                    demopl_v1_data_to_img(op_batch[best_sample:best_sample+1], batch_size),
+                    filename='best_reconstruction_{}'.format(best_sample),
+                    printHeader="Final Reconstruction For Best Test Image {}".format(best_sample))
+                self.save_matplotlib_comparison(batch_size, 
+                    demopl_v1_data_to_img(ground_truth[worst_sample:worst_sample+1], batch_size),
+                    demopl_v1_data_to_img(op_batch[worst_sample:worst_sample+1], batch_size),
+                    filename='worst_reconstruction_{}'.format(worst_sample),
+                    printHeader="Final Reconstruction For Worst Test Image {}".format(worst_sample))
                 for n in range(5):
                     self.save_matplotlib_comparison(batch_size, 
                         demopl_v1_data_to_img(ground_truth[n:n+1], batch_size),
@@ -363,7 +380,6 @@ class ExptRunner(ExptRunnerBase):
                         filename='final_reconstruction_{}'.format(n),
                         printHeader="Final Reconstruction For Test Image {}".format(n))
 
-        writeline(builder, "Test Loss: {}".format(test_loss))
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())
         builder.close()

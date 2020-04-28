@@ -9,6 +9,14 @@ import torch.nn as nn
 from adapters import *
 from networks.lossfunctions import *
 
+def load_mapped_state_dict(target, source, tPrefix, sPrefix):
+    new_dict = target.state_dict()
+    for p,v in source.state_dict().items():
+        targetKey = p.replace(sPrefix, tPrefix)
+        if targetKey in target.state_dict().keys():
+            new_dict[targetKey] = v
+    target.load_state_dict(new_dict)
+
 class ReportResults:
     def __init__(self, testData, trainData, device, checkpointFile, useL1Loss=False):
         self.checkpoint_file = checkpointFile

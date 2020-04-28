@@ -114,3 +114,8 @@ def policy_groud_truth_one_hot_adapter(data):
 
 def demopl_v1_filter_and_convert_to_image(data, batch_size):
     return demopl_v1_data_to_img(It_scaled_adapter(data), batch_size)
+
+def multinet_ground_truth_adapter(data):
+    It = It_scaled_adapter(data)
+    Yt = XtYt_scaled_adapter(data)
+    return torch.cat((It, Yt, It, Yt),dim=1)
