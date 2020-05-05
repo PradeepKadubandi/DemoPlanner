@@ -2,6 +2,7 @@ from networks.imageencoder import *
 from networks.imagedecoder import *
 from networks.dense import Dense
 from adapters import *
+from networks.ArgMax import ArgMaxFunction
 
 '''
 Contains networks that were built for one-off trials and specialized
@@ -46,3 +47,40 @@ class ImageEnvEncoder(nn.Module):
         I_recon = self.imgDec(z_img)
         y_recon = self.envDec(z_env)
         return z_img, z_env, I_recon, y_recon
+
+class EndToEndNet(nn.Module):
+    def __init__(self, ItoY, policy, dynamics):
+        super(EndToEndNet, self).__init__()
+        self.ItoY = ItoY
+        self.policy = policy
+        self.dynamics = dynamics
+
+    def forward(self, data):
+        xt = Xt_scaled_adapter(data).detach()
+        env = self.ItoY(It_scaled_adapter(data))
+        yhat_t = env[:, 2:]
+        policy_input = torch.cat((xt, yhat_t), dim=1)
+        policy_output = self.policy(policy_input)
+        lsmax_x = F.log_softmax(policy_output[:, :3], dim=1)
+        lsmax_y = F.log_softmax(policy_output[:, 3:], dim=1)
+        ux = ArgMaxFunction.apply(lsmax_x)
+        uy = ArgMaxFunction.apply(lsmax_y)
+        uhat_t = (torch.cat((ux,uy), dim=1)) / 2.0
+        dynamics_input = torch.cat((xt,uhat_t), dim=1)
+        dynamics_out = self.dynamics(dynamics_input)
+        return yhat_t, uhat_t, dynamics_out
+
+    def __set_requires_grad(self, net, val):
+        for p in net.parameters():
+            p.requires_grad_(val)
+
+    def configureTraining(self, filters=[]):
+        '''
+        filters: Array of indices of which subnets are fixed in their parameters in training.
+        0 - for ItoY, 1 - policy, 2 - dynamics.
+        '''
+        subnets = [self.ItoY, self.policy, self.dynamics]
+        for n in subnets:
+            self.__set_requires_grad(n, True)
+        for n in [subnets[f] for f in filters]:
+            self.__set_requires_grad(n, False)

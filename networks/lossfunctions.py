@@ -103,3 +103,26 @@ def MultiEncoderNet_mse_loss_adapter(net, data, labels=None):
     I_to_I, I_to_Y, Y_to_I, Y_to_Y = net(data)
     loss = F.mse_loss(I_to_I, I) + F.mse_loss(I_to_Y, Y) + F.mse_loss(Y_to_I, I) + F.mse_loss(Y_to_Y, Y)
     return I_to_I, loss
+
+def EndToEndEnv_EndToEnd_mse_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
+    # y_t = XtYt_scaled_adapter(labels)[:, 2:]
+    # u_t = Ut_scaled_adapter(labels)
+    diff_t = dynamics_gradient_ground_truth_adapter(labels)
+    yhat_t, uhat_t, dynamics_out = net(ip_batch)
+    # loss = F.mse_loss(yhat_t, y_t) + F.mse_loss(uhat_t, u_t) + F.mse_loss(dynamics_out, diff_t)
+    loss = F.mse_loss(dynamics_out, diff_t)
+    return dynamics_out, loss
+
+def EndToEndEnv_EndToEnd_l1_loss_adapter(net, ip_batch, labels=None, reduction='mean'):
+    labels = ip_batch if labels is None else labels
+    # y_t = XtYt_scaled_adapter(labels)[:, 2:]
+    # u_t = Ut_scaled_adapter(labels)
+    diff_t = dynamics_gradient_ground_truth_adapter(labels)
+    yhat_t, uhat_t, dynamics_out = net(ip_batch)
+    if reduction == 'none':
+        loss = F.l1_loss(dynamics_out, diff_t, reduction=reduction)
+    else:
+        loss = F.l1_loss(dynamics_out, diff_t)
+    return dynamics_out, loss
+
