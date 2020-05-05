@@ -109,7 +109,7 @@ def EndToEndEnv_EndToEnd_mse_loss_adapter(net, ip_batch, labels=None):
     # y_t = XtYt_scaled_adapter(labels)[:, 2:]
     # u_t = Ut_scaled_adapter(labels)
     diff_t = dynamics_gradient_ground_truth_adapter(labels)
-    yhat_t, uhat_t, dynamics_out = net(ip_batch)
+    yhat_t, policy_output, uhat_t, dynamics_out = net(ip_batch)
     # loss = F.mse_loss(yhat_t, y_t) + F.mse_loss(uhat_t, u_t) + F.mse_loss(dynamics_out, diff_t)
     loss = F.mse_loss(dynamics_out, diff_t)
     return dynamics_out, loss
@@ -119,10 +119,20 @@ def EndToEndEnv_EndToEnd_l1_loss_adapter(net, ip_batch, labels=None, reduction='
     # y_t = XtYt_scaled_adapter(labels)[:, 2:]
     # u_t = Ut_scaled_adapter(labels)
     diff_t = dynamics_gradient_ground_truth_adapter(labels)
-    yhat_t, uhat_t, dynamics_out = net(ip_batch)
+    yhat_t, policy_output, uhat_t, dynamics_out = net(ip_batch)
     if reduction == 'none':
         loss = F.l1_loss(dynamics_out, diff_t, reduction=reduction)
     else:
         loss = F.l1_loss(dynamics_out, diff_t)
     return dynamics_out, loss
 
+def EndToEndEnv_Policy_ce_loss_adapter(net, ip_batch, labels=None):
+    labels = ip_batch if labels is None else labels
+    # y_t = XtYt_scaled_adapter(labels)[:, 2:]
+    u_t = Ut_scaled_adapter(labels)
+    diff_t = dynamics_gradient_ground_truth_adapter(labels)
+    yhat_t, policy_output, uhat_t, dynamics_out = net(ip_batch)
+    # loss = F.mse_loss(yhat_t, y_t) + F.mse_loss(uhat_t, u_t) + F.mse_loss(dynamics_out, diff_t)
+    loss = F.cross_entropy(policy_output[:, :3], u_t[:, 0])
+    loss += F.cross_entropy(policy_output[:, 3:], u_t[:, 1])
+    return policy_output, loss
