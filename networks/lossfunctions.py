@@ -50,6 +50,14 @@ def control_ce_loss_adapter(net, ip_batch, labels=None):
     loss += F.cross_entropy(op_batch[:, 3:], labels[:, 1])
     return op_batch, loss
 
+def policy_l1_loss_adapter(net, ip_batch, labels=None, reduction='mean'):
+    labels = ip_batch if labels is None else labels
+    op_batch = net(ip_batch)
+    x_class = torch.argmax(op_batch[:, :3], dim=1, keepdims=True)
+    y_class = torch.argmax(op_batch[:, :3], dim=1, keepdims=True)
+    predictions = torch.cat((x_class, y_class), dim=1).float()
+    return op_batch, F.l1_loss(predictions, labels, reduction=reduction)
+
 def bce_loss_adapter(net, ip_batch, labels=None):
     labels = ip_batch if labels is None else labels
     op_batch = net(ip_batch)

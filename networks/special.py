@@ -118,3 +118,52 @@ class EndToEndNet(nn.Module):
             predictions[i, :] = torch.cat((yhat_t[0] * 32, uhat_t[0], xhat_tplus[0], image.view(-1)))
             Ihat_tplus = image / 255.0 # scale the prediction back to expected range for network
         return predictions
+
+class LatentPolicyNet(nn.Module):
+    def __init__(self, latent, policy):
+        super(LatentPolicyNet, self).__init__()
+        self.latent = latent
+        self.policy = policy
+
+    def forward(self, data):
+        policy_input = self.latent(It_scaled_adapter(data))
+        policy_output = self.policy(policy_input)
+        return policy_output
+
+    def __set_requires_grad(self, net, val):
+        for p in net.parameters():
+            p.requires_grad_(val)
+
+    def configureTraining(self, filters=[]):
+        '''
+        filters: Array of indices of which subnets are fixed in their parameters in training.
+        0 - for latent, 1 - policy.
+        '''
+        subnets = [self.latent, self.policy]
+        for n in subnets:
+            self.__set_requires_grad(n, True)
+        for n in [subnets[f] for f in filters]:
+            self.__set_requires_grad(n, False)
+
+    def rollout(self, gt_trajectory):
+        de = DiscreteEnvironment()
+        firstRow = gt_trajectory[:1, :].clone()
+        Ihat_tplus = It_scaled_adapter(firstRow)
+        xhat_tplus = Xt_unscaled_adapter(firstRow)
+        predictions = torch.zeros(len(gt_trajectory), 1028) # (uhat_t, xhat_t+1, Ihat_t+1)
+        for i in range(len(gt_trajectory)):
+            policy_input = self.latent(Ihat_tplus)
+            policy_output = self.policy(policy_input)
+            ux = torch.argmax(policy_output[:, :3], dim=1, keepdims=True)
+            uy = torch.argmax(policy_output[:, 3:], dim=1, keepdims=True)
+            uhat_t = (torch.cat((ux,uy), dim=1))
+            uhat_t = uhat_t - 1.0 # policy argmax is from 0-2 and u_t is from -1 to 1
+            xhat_tplus += uhat_t
+            start = torch.round(xhat_tplus[0]).int() # Upscale the output from dynamics to image size
+            goal = torch.round(32 * yhat_t[0]).int()
+            start = torch.clamp(start, 2, 29) # For generating environment, values must be within this range
+            goal = torch.clamp(goal, 2, 29)
+            image = torch.Tensor(de.generateImage(start, goal)) # generate image
+            predictions[i, :] = torch.cat((uhat_t[0], xhat_tplus[0], image.view(-1)))
+            Ihat_tplus = image / 255.0 # scale the prediction back to expected range for network
+        return predictions
