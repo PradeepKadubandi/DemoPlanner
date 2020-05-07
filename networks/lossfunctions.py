@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from adapters import *
 
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+
 def vae_loss(recon_x, x, mu, logvar):
     BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
 
@@ -129,8 +131,8 @@ def EndToEndEnv_EndToEnd_l1_loss_adapter(net, ip_batch, labels=None, reduction='
 def EndToEndEnv_Policy_ce_loss_adapter(net, ip_batch, labels=None):
     labels = ip_batch if labels is None else labels
     # y_t = XtYt_scaled_adapter(labels)[:, 2:]
-    u_t = Ut_scaled_adapter(labels)
-    diff_t = dynamics_gradient_ground_truth_adapter(labels)
+    u_t = policy_groud_truth_class_adapter(labels).to(device)
+    diff_t = dynamics_gradient_ground_truth_adapter(labels).to(device)
     yhat_t, policy_output, uhat_t, dynamics_out = net(ip_batch)
     # loss = F.mse_loss(yhat_t, y_t) + F.mse_loss(uhat_t, u_t) + F.mse_loss(dynamics_out, diff_t)
     loss = F.cross_entropy(policy_output[:, :3], u_t[:, 0])

@@ -90,8 +90,9 @@ class EndToEndNet(nn.Module):
 
     def rollout(self, gt_trajectory):
         de = DiscreteEnvironment()
-        Ihat_tplus = It_scaled_adapter(gt_trajectory[:1, :])
-        xhat_tplus = Xt_unscaled_adapter(gt_trajectory[:1, :])
+        firstRow = gt_trajectory[:1, :].clone()
+        Ihat_tplus = It_scaled_adapter(firstRow)
+        xhat_tplus = Xt_unscaled_adapter(firstRow)
         predictions = torch.zeros(len(gt_trajectory), 1030) # (yhat_t, uhat_t, xhat_t+1, Ihat_t+1) = 1030
         for i in range(len(gt_trajectory)):
             Yhat_t = self.ItoY(Ihat_tplus)
@@ -103,15 +104,17 @@ class EndToEndNet(nn.Module):
             lsmax_y = F.log_softmax(policy_output[:, 3:], dim=1)
             ux = ArgMaxFunction.apply(lsmax_x)
             uy = ArgMaxFunction.apply(lsmax_y)
-            uhat_t = (torch.cat((ux,uy), dim=1)) / 2.0
-            dynamics_input = torch.cat((xt,uhat_t), dim=1)
-            dynamics_out = self.dynamics(dynamics_input)
-            xhat_tplus += ((dynamics_out * 2.0) - 1.0)  # Dynamics network predicts x_t+1 - x_t but in the range (0, 1)
+            uhat_t = (torch.cat((ux,uy), dim=1))
+            uhat_t = uhat_t - 1.0 # policy argmax is from 0-2 and u_t is from -1 to 1
+            # dynamics_input = torch.cat((xt,uhat_t), dim=1)
+            # dynamics_out = self.dynamics(dynamics_input)
+            # xhat_tplus += ((dynamics_out * 2.0) - 1.0)  # Dynamics network predicts x_t+1 - x_t but in the range (0, 1)
+            xhat_tplus += uhat_t
             start = torch.round(xhat_tplus[0]).int() # Upscale the output from dynamics to image size
             goal = torch.round(32 * yhat_t[0]).int()
             start = torch.clamp(start, 2, 29) # For generating environment, values must be within this range
             goal = torch.clamp(goal, 2, 29)
             image = torch.Tensor(de.generateImage(start, goal)) # generate image
-            predictions[i, :] = torch.cat((yhat_t[0] * 32, (uhat_t[0] * 2.0) - 1.0, xhat_tplus[0], image.view(-1)))
+            predictions[i, :] = torch.cat((yhat_t[0] * 32, uhat_t[0], xhat_tplus[0], image.view(-1)))
             Ihat_tplus = image / 255.0 # scale the prediction back to expected range for network
         return predictions
