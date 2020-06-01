@@ -115,7 +115,7 @@ class EndToEndNet(nn.Module):
             start = torch.clamp(start, 2, 29) # For generating environment, values must be within this range
             goal = torch.clamp(goal, 2, 29)
             image = torch.Tensor(de.generateImage(start, goal)) # generate image
-            predictions[i, :] = torch.cat((yhat_t[0] * 32, uhat_t[0], xhat_tplus[0], image.view(-1)))
+            predictions[i, :] = torch.cat((uhat_t[0], xhat_tplus[0], image.view(-1), yhat_t[0] * 32))
             Ihat_tplus = image / 255.0 # scale the prediction back to expected range for network
         return predictions
 
@@ -150,6 +150,7 @@ class LatentPolicyNet(nn.Module):
         firstRow = gt_trajectory[:1, :].clone()
         Ihat_tplus = It_scaled_adapter(firstRow)
         xhat_tplus = Xt_unscaled_adapter(firstRow)
+        y_t = Yt_unscaled_adapter(firstRow)
         predictions = torch.zeros(len(gt_trajectory), 1028) # (uhat_t, xhat_t+1, Ihat_t+1)
         for i in range(len(gt_trajectory)):
             policy_input = self.latent(Ihat_tplus)
@@ -160,7 +161,7 @@ class LatentPolicyNet(nn.Module):
             uhat_t = uhat_t - 1.0 # policy argmax is from 0-2 and u_t is from -1 to 1
             xhat_tplus += uhat_t
             start = torch.round(xhat_tplus[0]).int() # Upscale the output from dynamics to image size
-            goal = torch.round(32 * yhat_t[0]).int()
+            goal = y_t[0].int()
             start = torch.clamp(start, 2, 29) # For generating environment, values must be within this range
             goal = torch.clamp(goal, 2, 29)
             image = torch.Tensor(de.generateImage(start, goal)) # generate image
