@@ -17,6 +17,10 @@ def load_mapped_state_dict(target, source, tPrefix, sPrefix):
             new_dict[targetKey] = v
     target.load_state_dict(new_dict)
 
+def configure_net_training(net, val):
+    for p in net.parameters():
+        p.requires_grad_(val)
+
 class ReportResults:
     def __init__(self, testData, trainData, device, checkpointFile, useL1Loss=False):
         self.checkpoint_file = checkpointFile

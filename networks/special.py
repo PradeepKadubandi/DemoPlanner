@@ -4,6 +4,7 @@ from networks.dense import Dense
 from adapters import *
 from networks.ArgMax import ArgMaxFunction
 from datagen.discreteenvironment import DiscreteEnvironment
+from helpers import configure_net_training
 
 '''
 Contains networks that were built for one-off trials and specialized
@@ -73,10 +74,6 @@ class EndToEndNet(nn.Module):
         dynamics_out = self.dynamics(dynamics_input)
         return yhat_t, policy_output, uhat_t, dynamics_out
 
-    def __set_requires_grad(self, net, val):
-        for p in net.parameters():
-            p.requires_grad_(val)
-
     def configureTraining(self, filters=[]):
         '''
         filters: Array of indices of which subnets are fixed in their parameters in training.
@@ -84,9 +81,9 @@ class EndToEndNet(nn.Module):
         '''
         subnets = [self.ItoY, self.policy, self.dynamics]
         for n in subnets:
-            self.__set_requires_grad(n, True)
+            configure_net_training(n, True)
         for n in [subnets[f] for f in filters]:
-            self.__set_requires_grad(n, False)
+            configure_net_training(n, False)
 
     def rollout(self, gt_trajectory):
         de = DiscreteEnvironment()
@@ -130,10 +127,6 @@ class LatentPolicyNet(nn.Module):
         policy_output = self.policy(policy_input)
         return policy_output
 
-    def __set_requires_grad(self, net, val):
-        for p in net.parameters():
-            p.requires_grad_(val)
-
     def configureTraining(self, filters=[]):
         '''
         filters: Array of indices of which subnets are fixed in their parameters in training.
@@ -141,9 +134,9 @@ class LatentPolicyNet(nn.Module):
         '''
         subnets = [self.latent, self.policy]
         for n in subnets:
-            self.__set_requires_grad(n, True)
+            configure_net_training(n, True)
         for n in [subnets[f] for f in filters]:
-            self.__set_requires_grad(n, False)
+            configure_net_training(n, False)
 
     def rollout(self, gt_trajectory):
         de = DiscreteEnvironment()
