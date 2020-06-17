@@ -117,13 +117,19 @@ class EndToEndNet(nn.Module):
         return predictions
 
 class LatentPolicyNet(nn.Module):
-    def __init__(self, latent, policy):
+    def __init__(self, latent, policy, latentFilter=None):
+        '''
+        latentFilter : (inputDataRow, latentOutput) --> policyInput
+        '''
         super(LatentPolicyNet, self).__init__()
         self.latent = latent
         self.policy = policy
+        self.latentFilter = latentFilter
 
     def forward(self, data):
         policy_input = self.latent(It_scaled_adapter(data))
+        if self.latentFilter:
+            policy_input = self.latentFilter(data, policy_input)
         policy_output = self.policy(policy_input)
         return policy_output
 
@@ -147,6 +153,8 @@ class LatentPolicyNet(nn.Module):
         predictions = torch.zeros(len(gt_trajectory), 1028) # (uhat_t, xhat_t+1, Ihat_t+1)
         for i in range(len(gt_trajectory)):
             policy_input = self.latent(Ihat_tplus)
+            if self.latentFilter:
+                policy_input = self.latentFilter(gt_trajectory[i:i+1], policy_input)
             policy_output = self.policy(policy_input)
             ux = torch.argmax(policy_output[:, :3], dim=1, keepdims=True)
             uy = torch.argmax(policy_output[:, 3:], dim=1, keepdims=True)
