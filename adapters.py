@@ -91,6 +91,14 @@ def dynamics_grad_gt_Y_scaled(data):
 def policy_input_adapter(data):
     return data[:, :x_dim+y_dim] / img_res
 
+def Xt_XtYt_scaled_adapter(data):
+    '''
+    The name is not a typo, the idea behind this is to augment Y with X
+    Policy takes as input X and this new Augmented Y
+    (This is for training a combination of latent from image and policy together)
+    '''
+    return torch.cat((data[:, :x_dim], data[:, :x_dim+y_dim]), dim=1) / img_res
+
 def policy_groud_truth_adapter(data):
     '''
     Useful for regression loss
