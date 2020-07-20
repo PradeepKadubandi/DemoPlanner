@@ -32,7 +32,7 @@ class ExptRunnerBase:
         self.writer = SummaryWriter(self.log_folder)
         self.train_mini_batch_size = 100
         self.train_loader = DataLoader(train_data, batch_size=self.train_mini_batch_size, shuffle=True)
-        self.test_loader = DataLoader(test_data, batch_size=len(test_data), shuffle=False)
+        self.test_loader = DataLoader(test_data, batch_size=self.train_mini_batch_size, shuffle=False)
     
     def log_network_details(self):
         header1 = StringIO()
@@ -128,11 +128,11 @@ class ExptRunner(ExptRunnerBase):
         # eval_test_data = self.test_data.data
 
         builder = StringIO()
-        running_loss = 0.0
         # eval_freq = 1000
         # if self.train_data.data.size()[0] < eval_freq * self.train_mini_batch_size:
         #     eval_freq = 100
         for epoch in range(epochs):
+            current_epoch_losses = []
             writeline(builder, '{}: Epoch {} Begin'.format(datetime.now(), epoch))
             for i, data in enumerate(self.train_loader, 0):
                 optimizer.zero_grad()
@@ -142,7 +142,7 @@ class ExptRunner(ExptRunnerBase):
                 loss.backward()
                 optimizer.step()
                 
-                running_loss += loss.item()
+                current_epoch_losses.append(loss.item())
                 # if i % eval_freq == (eval_freq-1):
                 #     index = epoch * len(self.train_loader) + i
                 #     writeline(builder, '{}: Eval at Index {} Begin'.format(datetime.now(), index))
@@ -159,6 +159,15 @@ class ExptRunner(ExptRunnerBase):
                 #         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
 
                 #     writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
+            avg_mbl = sum(current_epoch_losses) / len(current_epoch_losses)
+            worst_mbl = max(current_epoch_losses)
+            best_mbl = min(current_epoch_losses)
+            self.writer.add_scalar('Average Training Loss / epoch', avg_mbl, epoch)
+            self.writer.add_scalar('Worst Training Loss / epoch', worst_mbl, epoch)
+            self.writer.add_scalar('Best Training Loss / epoch', best_mbl, epoch)
+            writeline(builder, 'Average Training Loss for epoch {}: {}'.format(epoch, avg_mbl))
+            writeline(builder, 'Worst Training Loss for epoch {}: {}'.format(epoch, worst_mbl))
+            writeline(builder, 'Best Training Loss for epoch {}: {}'.format(epoch, best_mbl))
 
         writeline(builder, 'Total time taken for training {} sec.'.format(time.time() - start))
 
@@ -182,17 +191,17 @@ class ExptRunner(ExptRunnerBase):
         builder = StringIO()
         test_loss = 0.0
         with torch.no_grad():
-            data = next(self.test_loader)
-            ip_batch = self.data_adapter_func(data)
-            ground_truth = self.data_to_label_adapter(data) if self.data_to_label_adapter else ip_batch
-            ground_truth = ground_truth.to(self.device)
-            if loss_adapter:
-                op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
-                _, loss_unreduced = loss_adapter(self.net, ip_batch, ground_truth, reduction='none')
-            else:
-                op_batch = self.net(ip_batch)
-                loss = F.l1_loss(op_batch, ground_truth)
-                loss_unreduced = F.l1_loss(op_batch, ground_truth, reduction='none')
+            for i, data in enumerate(self.test_loader):
+                ip_batch = self.data_adapter_func(data)
+                ground_truth = self.data_to_label_adapter(data) if self.data_to_label_adapter else ip_batch
+                ground_truth = ground_truth.to(self.device)
+                if loss_adapter:
+                    op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
+                    _, loss_unreduced = loss_adapter(self.net, ip_batch, ground_truth, reduction='none')
+                else:
+                    op_batch = self.net(ip_batch)
+                    loss = F.l1_loss(op_batch, ground_truth)
+                    loss_unreduced = F.l1_loss(op_batch, ground_truth, reduction='none')
 
             test_loss += loss.item()
             writeline(builder, "Test Loss: {}".format(test_loss))
