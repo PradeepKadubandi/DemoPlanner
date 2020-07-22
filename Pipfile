@@ -12,6 +12,10 @@ jupyter = "*"
 tensorboard = "*"
 pillow = "*"
 jupyter-nbextensions-configurator = "*"
+gym = "==0.15.4"
+mujoco-py = "==2.0.2.10"
+opencv-python = "*"
+pyquaternion = "*"
 
 [requires]
 python_version = "3.6"
