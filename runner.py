@@ -190,10 +190,10 @@ class ExptEvaluator:
         self.checkpoint_file = checkpoint_file
         self.log_folder = os.path.dirname(checkpoint_file)
         self.device = device
-        chkpt = torch.load(checkpoint_file, map_location=device)
-        self.net = chkpt['model']
-        self.data_adapter_func = chkpt['input_adapter']
-        self.data_to_label_adapter = chkpt['label_adapter']
+        self.chkpt = torch.load(checkpoint_file, map_location=self.device)
+        self.net = self.chkpt['model']
+        self.data_adapter_func = self.chkpt['input_adapter']
+        self.data_to_label_adapter = self.chkpt['label_adapter']
         self.train_data = train_data
         self.test_data = test_data
         self.train_mini_batch_size = 128
@@ -204,10 +204,12 @@ class ExptEvaluator:
         # test_loss = 0.0
         train_loader = DataLoader(self.train_data, batch_size=self.train_mini_batch_size, shuffle=False)
         test_loader = DataLoader(self.test_data, batch_size=self.train_mini_batch_size, shuffle=False)
-        for loader, setName in zip([test_loader, train_loader], ['Test Set', 'Training Set']):
+        for loader, setName in zip([test_loader, train_loader], ['test_set', 'training_set']):
             writeline(builder, '============================================================')
             writeline(builder, '     Start Evaluation On {}'.format(setName))
             writeline(builder, '============================================================')
+            good_test_samples = []
+            bad_test_samples = []
             with torch.no_grad():
                 N = 0
                 best_sample_all = None
@@ -239,8 +241,12 @@ class ExptEvaluator:
                     writeline(builder, '    Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample, loss_per_sample[worst_sample]))
                     if best_sample_all is None or best_sample_all[1] > loss_per_sample[best_sample]:
                         best_sample_all = (best_sample, loss_per_sample[best_sample])
+                        good_test_samples.append((N-1) * self.train_mini_batch_size + best_sample.item())
+                        writeline(builder, 'New candidate for best sample: index = {}'.format(good_test_samples[-1]))
                     if worst_sample_all is None or worst_sample_all[1] < loss_per_sample[worst_sample]:
                         worst_sample_all = (worst_sample, loss_per_sample[worst_sample])
+                        bad_test_samples.append((N-1) * self.train_mini_batch_size + worst_sample.item())
+                        writeline(builder, 'New candidate for worst sample: index = {}'.format(bad_test_samples[-1]))
                     total_loss += batch_loss
                     total_samples += batch_size 
 
@@ -251,6 +257,14 @@ class ExptEvaluator:
                 writeline(builder, 'Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample_all[0], best_sample_all[1]))
                 writeline(builder, 'Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample_all[0], worst_sample_all[1]))
 
+                with open(self.log_folder + '/{}_good_samples.txt'.format(setName), 'w') as g:
+                    for v in good_test_samples:
+                        g.write(str(v))
+                        g.write('\n')
+                with open(self.log_folder + '/{}_bad_samples.txt'.format(setName), 'w') as b:
+                    for v in bad_test_samples:
+                        b.write(str(v))
+                        b.write('\n')
                 # if ground_truth.size()[1] == 1024:
                 #     batch_size = 1
                 #     self.save_matplotlib_comparison(batch_size, 
