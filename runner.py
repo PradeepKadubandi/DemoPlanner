@@ -32,7 +32,6 @@ class ExptRunnerBase:
         self.writer = SummaryWriter(self.log_folder)
         self.train_mini_batch_size = 100
         self.train_loader = DataLoader(train_data, batch_size=self.train_mini_batch_size, shuffle=True)
-        self.test_loader = DataLoader(test_data, batch_size=self.train_mini_batch_size, shuffle=False)
     
     def log_network_details(self):
         header1 = StringIO()
@@ -186,49 +185,90 @@ class ExptRunner(ExptRunnerBase):
             'loss_adapter': self.loss_adapter_func,
         }, self.checkpoint_file)
 
+class ExptEvaluator:
+    def __init__(self, checkpoint_file, train_data, test_data, device=None):
+        self.checkpoint_file = checkpoint_file
+        self.log_folder = os.path.dirname(checkpoint_file)
+        self.device = device
+        chkpt = torch.load(checkpoint_file, map_location=device)
+        self.net = chkpt['model']
+        self.data_adapter_func = chkpt['input_adapter']
+        self.data_to_label_adapter = chkpt['label_adapter']
+        self.train_data = train_data
+        self.test_data = test_data
+        self.train_mini_batch_size = 128
+
     def test(self, loss_adapter=None):
         self.net.eval()
         builder = StringIO()
-        test_loss = 0.0
-        with torch.no_grad():
-            for i, data in enumerate(self.test_loader):
-                ip_batch = self.data_adapter_func(data)
-                ground_truth = self.data_to_label_adapter(data) if self.data_to_label_adapter else ip_batch
-                ground_truth = ground_truth.to(self.device)
-                if loss_adapter:
-                    op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
-                    _, loss_unreduced = loss_adapter(self.net, ip_batch, ground_truth, reduction='none')
-                else:
-                    op_batch = self.net(ip_batch)
-                    loss = F.l1_loss(op_batch, ground_truth)
-                    loss_unreduced = F.l1_loss(op_batch, ground_truth, reduction='none')
+        # test_loss = 0.0
+        train_loader = DataLoader(self.train_data, batch_size=self.train_mini_batch_size, shuffle=False)
+        test_loader = DataLoader(self.test_data, batch_size=self.train_mini_batch_size, shuffle=False)
+        for loader, setName in zip([test_loader, train_loader], ['Test Set', 'Training Set']):
+            writeline(builder, '============================================================')
+            writeline(builder, '     Start Evaluation On {}'.format(setName))
+            writeline(builder, '============================================================')
+            with torch.no_grad():
+                N = 0
+                best_sample_all = None
+                worst_sample_all = None
+                total_loss = 0.0
+                total_samples = 0 
+                for i, data in enumerate(loader):
+                    ip_batch = self.data_adapter_func(data)
+                    ground_truth = self.data_to_label_adapter(data) if self.data_to_label_adapter else ip_batch
+                    ground_truth = ground_truth.to(self.device)
+                    if loss_adapter:
+                        # op_batch, loss = loss_adapter(self.net, ip_batch, ground_truth)
+                        _, loss_unreduced = loss_adapter(self.net, ip_batch, ground_truth, reduction='none')
+                    else:
+                        op_batch = self.net(ip_batch)
+                        # loss = F.l1_loss(op_batch, ground_truth)
+                        loss_unreduced = F.l1_loss(op_batch, ground_truth, reduction='none')
 
-            test_loss += loss.item()
-            writeline(builder, "Test Loss: {}".format(test_loss))
-            loss_per_sample = torch.sum(loss_unreduced, dim=1) / loss_unreduced.size()[1]
-            best_sample = torch.argmin(loss_per_sample)
-            worst_sample = torch.argmax(loss_per_sample)
-            writeline(builder, 'Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample, loss_per_sample[best_sample]))
-            writeline(builder, 'Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample, loss_per_sample[worst_sample]))
+                    # test_loss += loss.item()
+                    loss_per_sample = torch.sum(loss_unreduced, dim=1) / loss_unreduced.size()[1]
+                    best_sample = torch.argmin(loss_per_sample)
+                    worst_sample = torch.argmax(loss_per_sample)
+                    batch_loss = torch.sum(loss_per_sample)
+                    batch_size = len(loss_per_sample)
+                    N += 1
+                    writeline(builder, 'Mini-batch Metrics for batch number {}'.format(N))
+                    writeline(builder, "    Average Test Loss: {}".format(batch_loss.item() / batch_size))
+                    writeline(builder, '    Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample, loss_per_sample[best_sample]))
+                    writeline(builder, '    Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample, loss_per_sample[worst_sample]))
+                    if best_sample_all is None or best_sample_all[1] > loss_per_sample[best_sample]:
+                        best_sample_all = (best_sample, loss_per_sample[best_sample])
+                    if worst_sample_all is None or worst_sample_all[1] < loss_per_sample[worst_sample]:
+                        worst_sample_all = (worst_sample, loss_per_sample[worst_sample])
+                    total_loss += batch_loss
+                    total_samples += batch_size 
 
-            if ground_truth.size()[1] == 1024:
-                batch_size = 1
-                self.save_matplotlib_comparison(batch_size, 
-                    demopl_v1_data_to_img(ground_truth[best_sample:best_sample+1], batch_size),
-                    demopl_v1_data_to_img(op_batch[best_sample:best_sample+1], batch_size),
-                    filename='best_reconstruction_{}'.format(best_sample),
-                    printHeader="Final Reconstruction For Best Test Image {}".format(best_sample))
-                self.save_matplotlib_comparison(batch_size, 
-                    demopl_v1_data_to_img(ground_truth[worst_sample:worst_sample+1], batch_size),
-                    demopl_v1_data_to_img(op_batch[worst_sample:worst_sample+1], batch_size),
-                    filename='worst_reconstruction_{}'.format(worst_sample),
-                    printHeader="Final Reconstruction For Worst Test Image {}".format(worst_sample))
-                for n in range(5):
-                    self.save_matplotlib_comparison(batch_size, 
-                        demopl_v1_data_to_img(ground_truth[n:n+1], batch_size),
-                        demopl_v1_data_to_img(op_batch[n], batch_size),
-                        filename='final_reconstruction_{}'.format(n),
-                        printHeader="Final Reconstruction For Test Image {}".format(n))
+                writeline(builder, '------------------------------------------------------------')
+                writeline(builder, 'Overall Metrics Across All Mini-batches')
+                writeline(builder, '------------------------------------------------------------')
+                writeline(builder, "Test Loss: {}".format(total_loss / total_samples))
+                writeline(builder, 'Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample_all[0], best_sample_all[1]))
+                writeline(builder, 'Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample_all[0], worst_sample_all[1]))
+
+                # if ground_truth.size()[1] == 1024:
+                #     batch_size = 1
+                #     self.save_matplotlib_comparison(batch_size, 
+                #         demopl_v1_data_to_img(ground_truth[best_sample:best_sample+1], batch_size),
+                #         demopl_v1_data_to_img(op_batch[best_sample:best_sample+1], batch_size),
+                #         filename='best_reconstruction_{}'.format(best_sample),
+                #         printHeader="Final Reconstruction For Best Test Image {}".format(best_sample))
+                #     self.save_matplotlib_comparison(batch_size, 
+                #         demopl_v1_data_to_img(ground_truth[worst_sample:worst_sample+1], batch_size),
+                #         demopl_v1_data_to_img(op_batch[worst_sample:worst_sample+1], batch_size),
+                #         filename='worst_reconstruction_{}'.format(worst_sample),
+                #         printHeader="Final Reconstruction For Worst Test Image {}".format(worst_sample))
+                #     for n in range(5):
+                #         self.save_matplotlib_comparison(batch_size, 
+                #             demopl_v1_data_to_img(ground_truth[n:n+1], batch_size),
+                #             demopl_v1_data_to_img(op_batch[n], batch_size),
+                #             filename='final_reconstruction_{}'.format(n),
+                #             printHeader="Final Reconstruction For Test Image {}".format(n))
 
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())

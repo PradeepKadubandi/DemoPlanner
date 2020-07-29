@@ -24,6 +24,8 @@ class SimpleReacherBaseDataset(Dataset):
         if isinstance(self.trajectory_ids, int):
             self.trajectory_ids = range(self.trajectory_ids)
         self.trajectory_data = None
+        self.cumulative_index = torch.zeros(len(self.trajectory_ids))
+        idx = 0
         for tId in self.trajectory_ids:
             curr_trajectory = self._load_array(tId, 'trajectory.npy')
             if self.trajectory_data is None:
@@ -32,6 +34,9 @@ class SimpleReacherBaseDataset(Dataset):
                 self.trajectory_data = torch.cat((self.trajectory_data, curr_trajectory), axis=0)
             # Allow child classes to process
             self._process_trajectory(tId, curr_trajectory)
+            if idx+1 < len(self.cumulative_index):
+                self.cumulative_index[idx+1] = self.cumulative_index[idx] + len(curr_trajectory) 
+            idx += 1
         self.trajectory_data = torch.as_tensor(self.trajectory_data).to(self.device)
 
     def __len__(self):
