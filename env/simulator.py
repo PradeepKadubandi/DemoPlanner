@@ -12,12 +12,14 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 class simulator:
-    def __init__(self, initialState):
+    def __init__(self):
         parser = argparser()
         args, unparsed = parser.parse_known_args()
         reacher.add_arguments(parser)
         args, unparsed = parser.parse_known_args()
         self.env = gym.make(args.env, **args.__dict__)
+
+    def reset(self, initialState):
         self.env.reset()
         initial_pos = self.env.sim.data.qpos
         initial_pos[:x_dim+y_dim] = initialState[:x_dim+y_dim].clone()
@@ -26,7 +28,7 @@ class simulator:
         self.env.visualize_dummy_indicator(initialState[x_dim:x_dim+y_dim].clone())
 
     def step(self, action):
-        self.env.step(action, is_planner=True)
+        self.env.step(action, is_planner=False)
         return self.getState()
 
     def getState(self):
@@ -47,11 +49,12 @@ class evaluator:
         self.data = data
         self.policy_takes_image = policy_takes_image
         self.persist_to_disk = persist_to_disk
+        self.sim = simulator()
 
     def rollout(self, gt_trajectory):
         gt_states, gt_images = gt_trajectory[states_key], gt_trajectory[images_key]
-        sim = simulator(gt_states[0])
-        curr_state, curr_image = sim.getState()
+        self.sim.reset(gt_states[0])
+        curr_state, curr_image = self.sim.getState()
         states = torch.as_tensor(curr_state.reshape(1, -1))
         images = torch.as_tensor(curr_image.reshape(1, -1))
         actions = None
@@ -62,7 +65,7 @@ class evaluator:
                     actions = torch.as_tensor(action.reshape(1, -1))
                 else:
                     actions = torch.cat((actions, action.reshape(1, -1)), dim=0)
-            curr_state, curr_image = sim.step(action.numpy())
+            curr_state, curr_image = self.sim.step(action.numpy())
             states = torch.cat((states, curr_state.reshape(1, -1)), dim=0)
             images = torch.cat((images, curr_image.reshape(1, -1)), dim=0)
         actions = torch.cat((actions, torch.zeros_like(actions[0]).reshape(1, -1)), dim=0)
@@ -135,7 +138,7 @@ class evaluator:
         print ('')
         for i in range(len(sample_descriptions)):
             print ('{}: Index = {}, Value = {}'.format(sample_descriptions[i], indices[i], values[i]))
-            if i == 3:
+            if i == 2:
                 print ('')
 
         if self.persist_to_disk:
