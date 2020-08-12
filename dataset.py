@@ -16,6 +16,29 @@ class NumpyCsvDataSet(Dataset):
     def __getitem__(self, index):
         return self.data[index]
 
+class SimpleReacherTrajectoryDataset(Dataset):
+    def __init__(self, root_folder, trajectory_ids, device=None):
+        self.root_folder = root_folder
+        self.device = device
+        self.trajectory_ids = trajectory_ids
+        if isinstance(self.trajectory_ids, int):
+            self.trajectory_ids = range(self.trajectory_ids)
+
+    def __len__(self):
+        return len(self.trajectory_ids)
+
+    def _load_array(self, trajectoryId, fileName):
+        filePath = os.path.join(self.root_folder, str(trajectoryId), fileName)
+        if not os.path.exists(filePath):
+            raise Exception('Data file {} not present in root folder'.format(filePath))
+        return torch.as_tensor(np.load(filePath)).to(self.device)
+
+    def __getitem__(self, index):
+        return {
+            'states': self._load_array(index, 'trajectory.npy'),
+            'images': self._load_array(index, 'images.npy')
+        }
+
 class SimpleReacherBaseDataset(Dataset):
     def __init__(self, root_folder, trajectory_ids, device=None):
         self.root_folder = root_folder

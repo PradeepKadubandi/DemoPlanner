@@ -28,7 +28,7 @@ class BaseEnv(gym.Env):
 
     def __init__(self, xml_path, **kwargs):
         """ Initializes class with configuration. """
-        print("Creating env")
+        # print("Creating env")
         # default env config
         self._env_config = {
             "frame_skip": kwargs['frame_skip'],
