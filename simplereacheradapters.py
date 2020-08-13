@@ -33,11 +33,23 @@ def Ut_unscaled_adapter(data):
 def Ut_scaled_adapter(data):
     return (data[states_key][:, u_begin:u_begin+u_dim] + action_max).float() / (2 * action_max)
 
+def Ut_scaled_adapter_reverse(net_output):
+    return (net_output * (2 * action_max)) - action_max
+
 def Ut_scaled_adapter_zero_center(data):
     return (data[states_key][:, u_begin:u_begin+u_dim]).float() / (action_max)
+
+def Ut_scaled_adapter_zero_center_reverse(net_output):
+    return net_output * action_max
 
 def XtYt_unscaled_adapter(data):
     return data[states_key][:, :x_dim+y_dim].float()
 
 def XtYt_scaled_adapter(data):
     return (data[states_key][:, :x_dim+y_dim] + joint_max).float() / (2 * joint_max)
+
+def XtYt_scaled_adapter_eval(sim_state):
+    return (sim_state[:, :x_dim+y_dim] + joint_max).float() / (2 * joint_max)
+
+def identity_adapter(data):
+    return data
