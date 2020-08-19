@@ -17,10 +17,11 @@ class NumpyCsvDataSet(Dataset):
         return self.data[index]
 
 class SimpleReacherTrajectoryDataset(Dataset):
-    def __init__(self, root_folder, trajectory_ids, device=None):
+    def __init__(self, root_folder, trajectory_ids, include_images=True, device=None):
         self.root_folder = root_folder
         self.device = device
         self.trajectory_ids = trajectory_ids
+        self.include_images = include_images
         if isinstance(self.trajectory_ids, int):
             self.trajectory_ids = range(self.trajectory_ids)
 
@@ -34,10 +35,10 @@ class SimpleReacherTrajectoryDataset(Dataset):
         return torch.as_tensor(np.load(filePath)).to(self.device)
 
     def __getitem__(self, index):
-        return {
-            'states': self._load_array(index, 'trajectory.npy'),
-            'images': self._load_array(index, 'images.npy')
-        }
+        result = {'states': self._load_array(index, 'trajectory.npy')}
+        if self.include_images:
+            result['images'] = self._load_array(index, 'images.npy')
+        return result
 
 class SimpleReacherBaseDataset(Dataset):
     def __init__(self, root_folder, trajectory_ids, device=None):
