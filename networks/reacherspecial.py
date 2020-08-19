@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 class LatentPolicyNet(nn.Module):
     def __init__(self, latent, policy, latentFilter=None):
         '''

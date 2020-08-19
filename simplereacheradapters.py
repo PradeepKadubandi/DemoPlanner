@@ -9,6 +9,9 @@ def It_unscaled_adapter(data):
 def It_scaled_adapter(data):
     return data[images_key].float() / max_pixel
 
+def It_scaled_adapter_eval(data):
+    return data.float() / max_pixel
+
 def It_unscaled_HW_adapter(data):
     return data[images_key].float().view([-1, 1, img_res, img_res])
 

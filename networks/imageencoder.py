@@ -31,8 +31,8 @@ class ImageEncoder(nn.Module):
         return self.net(data)
 
 class ImageEncoderFlatInput(ImageEncoder):
-    def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False, addFlatten=False, img_res=32):
-        super(ImageEncoderFlatInput, self).__init__(input_channels, layers_channels, prefix, useMaxPool, addFlatten)
+    def __init__(self, input_channels, layers_channels, prefix, useMaxPool=False, addFlatten=False, img_res=32, kernel_size=3):
+        super(ImageEncoderFlatInput, self).__init__(input_channels, layers_channels, prefix, useMaxPool, addFlatten, kernel_size)
         self.reshapeInput = Reshape(-1, input_channels, img_res, img_res)
 
     def forward(self, data):

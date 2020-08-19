@@ -45,11 +45,11 @@ class simulator:
         return torch.as_tensor(cv2.cvtColor(cropped_rgb, cv2.COLOR_RGB2GRAY)).float()
 
 class evaluator:
-    def __init__(self, chkpt_file, device, policy_takes_image, persist_to_disk, op_reverse_adapter, ip_adapter=None):
+    def __init__(self, chkpt_file, device, policy_takes_image, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None):
         self.log_folder = os.path.dirname(chkpt_file)
         self.device = device
         self.chkpt = torch.load(self.log_folder + '/train_checkpoint.tar', map_location=device)
-        self.net = self.chkpt['model']
+        self.net = net if net else self.chkpt['model']
         self.ip_adapter = ip_adapter if ip_adapter else self.chkpt['input_adapter']
         self.op_reverse_adapter = op_reverse_adapter
         self.policy_takes_image = policy_takes_image
@@ -97,8 +97,8 @@ class evaluator:
             errors[index][1] = len(label_states)
             errors[index][2] = F.l1_loss(pred_states[:, u_begin:], label_states[:, u_begin:])
             errors[index][3] = F.l1_loss(pred_states[:, :x_dim], label_states[:, :x_dim])
-            errors[index][4] = F.l1_loss(pred_states[:, :x_dim+y_dim], label_states[:, :x_dim+y_dim])
-            errors[index][5] = F.l1_loss(pred_states[-1, :x_dim+y_dim], label_states[-1, :x_dim+y_dim])
+            errors[index][4] = F.l1_loss(pred_states[-1, :x_dim], label_states[-1, :x_dim])
+            errors[index][5] = F.l1_loss(pred_states[:, :x_dim+y_dim], label_states[:, :x_dim+y_dim])
         
         aggregate_row_headers = ['Sum', 'Average', 'Min Index', 'Min Value', 'Max Index', 'Max Value', 'Counts']
         aggregates = torch.zeros((7, 6))
@@ -121,7 +121,7 @@ class evaluator:
             with open(result_folder + '/trajectory_eval_metrics.csv', 'w') as f:
                 np.savetxt(f, errors.numpy(), fmt='%5.2f', delimiter=',')
             with open(result_folder + '/trajectory_eval_summary.csv', 'w') as f:
-                f.write('Trajectory Index,Trajectory Length,Policy L1 Loss,Trajectory Loss (step),Combined State Loss, Combined Goal Deviation\n')
+                f.write('Trajectory Index,Trajectory Length,Policy L1 Loss,Trajectory Loss,Goal Deviation,Combined State Loss\n')
                 f.write('Aggregates:\n')
                 for i in range(len(aggregate_row_headers)):
                     f.write(aggregate_row_headers[i])
@@ -140,11 +140,11 @@ class evaluator:
         writeline(builder, '-------------------------------------------------------------', out_to_console=True)
         writeline(builder, self.log_folder, out_to_console=True)
         writeline(builder, '-------------------------------------------------------------', out_to_console=True)
-        writeline(builder, 'Number of Trajectories Ended up Within Goal Region (Goal Loss <= {}): {}'.format(upper_threshholds[-1].item(), aggregates[6, 5].item()), out_to_console=True)
+        writeline(builder, 'Number of Trajectories Ended up Within Goal Region (Goal Loss <= {}): {}'.format(upper_threshholds[-1].item(), aggregates[6, 4].item()), out_to_console=True)
         writeline(builder, 'Average Policy L1 Loss: {}'.format(aggregates[1, 2].item()), out_to_console=True)
         writeline(builder, 'Average Trajectory Loss: {}'.format(aggregates[1, 3].item()), out_to_console=True)
-        writeline(builder, 'Average Combined State Loss: {}'.format(aggregates[1, 4].item()), out_to_console=True)
-        writeline(builder, 'Average Combined Goal Loss: {}'.format(aggregates[1, 5].item()), out_to_console=True)
+        writeline(builder, 'Average Goal Loss: {}'.format(aggregates[1, 4].item()), out_to_console=True)
+        writeline(builder, 'Average Combined State Loss: {}'.format(aggregates[1, 5].item()), out_to_console=True)
         writeline(builder, '', out_to_console=True)
         for i in range(len(sample_descriptions)):
             writeline(builder, '{}: Index = {}, Value = {}'.format(sample_descriptions[i], indices[i], values[i]), out_to_console=True)

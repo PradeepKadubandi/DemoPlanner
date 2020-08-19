@@ -13,7 +13,7 @@ from io import StringIO
 from datetime import datetime
 
 from utils import writeline
-from adapters import *
+import adapters
 
 class ExptRunnerBase:
     def __init__(self, expt_prefix, net_func,
@@ -30,7 +30,7 @@ class ExptRunnerBase:
         self.log_folder = 'runs/' + self.expt_name
         self.checkpoint_file = self.log_folder + '/train_checkpoint.tar'
         self.writer = SummaryWriter(self.log_folder)
-        self.train_mini_batch_size = 100
+        self.train_mini_batch_size = 128
         self.train_loader = DataLoader(train_data, batch_size=self.train_mini_batch_size, shuffle=True)
     
     def log_network_details(self):
@@ -101,7 +101,7 @@ class ExptRunner(ExptRunnerBase):
                     train_data, test_data,
                     loss_adapter_func, data_adapter_func=None, data_to_label_adapter=None, device=None):
         super(ExptRunner, self).__init__(expt_prefix, net_func, train_data, test_data, device)
-        self.data_adapter_func = data_adapter_func if data_adapter_func else identity_adapter
+        self.data_adapter_func = data_adapter_func if data_adapter_func else adapters.identity_adapter
         self.loss_adapter_func = loss_adapter_func
         self.data_to_label_adapter = data_to_label_adapter
 
