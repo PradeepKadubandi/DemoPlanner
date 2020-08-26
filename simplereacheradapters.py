@@ -54,5 +54,29 @@ def XtYt_scaled_adapter(data):
 def XtYt_scaled_adapter_eval(sim_state):
     return (sim_state[:, :x_dim+y_dim] + joint_max).float() / (2 * joint_max)
 
+def Xt_XtYt_scaled_adapter(data):
+    '''
+    The name is not a typo, the idea behind this is to augment Y with X
+    Policy takes as input X and this new Augmented Y
+    (This is for training a combination of latent from image and policy together)
+    '''
+    st = data[states_key]
+    xt_xtyt = torch.cat((st[:, :x_dim], st[:, :x_dim+y_dim]), dim=1)
+    return (xt_xtyt + joint_max).float() / (2 * joint_max)
+
+def Xt_XtYt_scaled_adapter_eval(sim_state):
+    xt_xtyt = torch.cat((sim_state[:, :x_dim], sim_state[:, :x_dim+y_dim]), dim=1)
+    return (xt_xtyt + joint_max).float() / (2 * joint_max)
+
+def XtYt_trig_adapter(data):
+    xtyt = data[states_key][:, :x_dim+y_dim].float()
+    trig = torch.cat((torch.cos(xtyt), torch.sin(xtyt)), dim=1)
+    return trig
+
+def XtYt_trig_adapter_eval(sim_state):
+    xtyt = sim_state[:, :x_dim+y_dim].float()
+    trig = torch.cat((torch.cos(xtyt), torch.sin(xtyt)), dim=1)
+    return trig
+
 def identity_adapter(data):
     return data
