@@ -204,12 +204,16 @@ class ExptEvaluator:
         # test_loss = 0.0
         train_loader = DataLoader(self.train_data, batch_size=self.train_mini_batch_size, shuffle=False)
         test_loader = DataLoader(self.test_data, batch_size=self.train_mini_batch_size, shuffle=False)
-        for loader, setName in zip([test_loader, train_loader], ['test_set', 'training_set']):
+        for loader, setName in zip([test_loader, train_loader], ['TestSet', 'TrainingSet']):
+            result_folder = os.path.join(self.log_folder, setName)
+            if not os.path.exists(result_folder):
+                os.makedirs(result_folder)
             writeline(builder, '============================================================')
             writeline(builder, '     Start Evaluation On {}'.format(setName))
             writeline(builder, '============================================================')
             good_test_samples = []
             bad_test_samples = []
+            all_samples_errors = None
             with torch.no_grad():
                 N = 0
                 best_sample_all = None
@@ -230,6 +234,10 @@ class ExptEvaluator:
 
                     # test_loss += loss.item()
                     loss_per_sample = torch.sum(loss_unreduced, dim=1) / loss_unreduced.size()[1]
+                    if all_samples_errors is None:
+                        all_samples_errors = loss_per_sample
+                    else:
+                        all_samples_errors = torch.cat((all_samples_errors, loss_per_sample), dim=0)
                     best_sample = torch.argmin(loss_per_sample)
                     worst_sample = torch.argmax(loss_per_sample)
                     batch_loss = torch.sum(loss_per_sample)
@@ -250,6 +258,9 @@ class ExptEvaluator:
                     total_loss += batch_loss
                     total_samples += batch_size 
 
+                with open(os.path.join(result_folder, 'test_eval_metrics.csv'), 'w') as f:
+                    np.savetxt(f, all_samples_errors.cpu().numpy(), fmt='%5.3f', delimiter=',')
+
                 writeline(builder, '------------------------------------------------------------')
                 writeline(builder, 'Overall Metrics Across All Mini-batches')
                 writeline(builder, '------------------------------------------------------------')
@@ -257,11 +268,11 @@ class ExptEvaluator:
                 writeline(builder, 'Best test sample index = {}, loss (average over dimensions) = {}'.format(best_sample_all[0], best_sample_all[1]))
                 writeline(builder, 'Worst test sample index = {}, loss (average over dimensions) = {}'.format(worst_sample_all[0], worst_sample_all[1]))
 
-                with open(self.log_folder + '/{}_good_samples.txt'.format(setName), 'w') as g:
+                with open(os.path.join(result_folder, 'good_samples.txt'), 'w') as g:
                     for v in good_test_samples:
                         g.write(str(v))
                         g.write('\n')
-                with open(self.log_folder + '/{}_bad_samples.txt'.format(setName), 'w') as b:
+                with open(os.path.join(result_folder, 'bad_samples.txt'), 'w') as b:
                     for v in bad_test_samples:
                         b.write(str(v))
                         b.write('\n')

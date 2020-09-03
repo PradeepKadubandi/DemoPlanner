@@ -4,7 +4,7 @@ import torch
 import os
 import numpy as np
 
-def save_recontruction_sample(ip_batch, op_batch, filePath):
+def save_recontruction_sample(ip_batch, op_batch, filePath, showimg=False):
     cmap = plt.get_cmap('gray')
     ip_batch = ip_batch.cpu()
     op_batch = op_batch.cpu()
@@ -19,7 +19,10 @@ def save_recontruction_sample(ip_batch, op_batch, filePath):
     ax.set_xticklabels([])
     plt.imshow(op_batch, cmap=cmap, vmin=0, vmax=1)
     ax.title.set_text('Recontructed')
-    fig.savefig(filePath)
+    if len(filePath) > 0:
+        fig.savefig(filePath)
+    if showimg:
+        plt.show()
     plt.close()
 
 def generate_img_reconstructions(rootdir, device, train_data, test_data, img_res):
@@ -29,9 +32,10 @@ def generate_img_reconstructions(rootdir, device, train_data, test_data, img_res
         data_adapter_func = chkpt['input_adapter']
         # data_to_label_adapter = chkpt['label_adapter']
         log_folder = os.path.dirname(chkpt_file)
-        for dataset, setName in zip([train_data, test_data], ['training_set', 'test_set']):
+        for dataset, folderName in zip([train_data, test_data], ['TrainingSet', 'TestSet']):
+            results_folder = os.path.join(log_folder, folderName)
             for crit in ['good', 'bad']:
-                with open(os.path.join(log_folder, '{}_{}_samples.txt'.format(setName, crit)), 'r') as f:
+                with open(os.path.join(results_folder, '{}_samples.txt'.format(crit)), 'r') as f:
                     while True:
                         line = f.readline()
                         if len(line) == 0:
@@ -42,7 +46,7 @@ def generate_img_reconstructions(rootdir, device, train_data, test_data, img_res
                             op_batch = net(ip_batch)
                         ip_batch = ip_batch.reshape(img_res, img_res)
                         op_batch = op_batch.reshape(img_res, img_res)
-                        save_recontruction_sample(ip_batch, op_batch, os.path.join(log_folder, '{}_{}_{}.png'.format(setName, crit, idx)))
+                        save_recontruction_sample(ip_batch, op_batch, os.path.join(results_folder, '{}_{}.png'.format(crit, idx)))
 
 def error_interval_counts(low, high, num, errors):
     x = np.linspace(low, high, num)
@@ -53,13 +57,27 @@ def error_interval_counts(low, high, num, errors):
     assert sum(y) == len(errors)
     return x, y
 
-def save_all_plots(rootdir, eval_folder_name):
+def save_all_plots_policy_rollout_run(rootdir, eval_folder_name):
     error_indices = {2:'PolicyError', 3:'TrajectoryError', 4:'GoalDeviation', 5:'CombinedStateLoss'}
-    high_values = {2:0.05, 3:0.2, 4:0.2, 5:0.1}
+    upper_limits = {2:0.05, 3:0.2, 4:0.2, 5:0.1}
+    metrics_file_name = 'trajectory_eval_metrics.csv'
+    for  eval_folder_name in ['TestSet_Evaluations', 'SmallTrainSet_Evaluations']:
+        save_all_plots(rootdir, eval_folder_name, error_indices, upper_limits, metrics_file_name)
+
+def save_all_plots_img_auto_encoder_run(rootdir):
+    error_indices = {0:'ReconstructionError'}
+    upper_limits = {0:0.01}
+    metrics_file_name = 'test_eval_metrics.csv'
+    for eval_folder_name in ['TestSet']: # Intentionally not including 'TrainingSet' as it's too big for this scenario.
+        save_all_plots(rootdir, eval_folder_name, error_indices, upper_limits, metrics_file_name)
+
+def save_all_plots(rootdir, eval_folder_name, error_indices, upper_limits, metrics_file_name):
     for chkpt_file in utils.enumerate_files(rootdir):
         run_folder = os.path.dirname(chkpt_file)
         print ('Processing folder : {}'.format(run_folder))
-        metrics = np.loadtxt(os.path.join(run_folder, eval_folder_name, 'trajectory_eval_metrics.csv'), delimiter=',', dtype=np.float32)
+        metrics = np.loadtxt(os.path.join(run_folder, eval_folder_name, metrics_file_name), delimiter=',', dtype=np.float32)
+        if metrics.ndim == 1:
+            metrics = metrics.reshape(-1, 1)
         for error_index, error_name in error_indices.items():
             fig = plt.figure()
             plt.boxplot(metrics[:, error_index])
@@ -73,7 +91,7 @@ def save_all_plots(rootdir, eval_folder_name):
             fig.savefig(os.path.join(run_folder, eval_folder_name, 'SortedErrors_BarPlot_' + error_name + '.png'))
             plt.close()
 
-            low, high, num = 0.0, high_values[error_index], 20
+            low, high, num = 0.0, upper_limits[error_index], 20
             x, y = error_interval_counts(low, high, num, metrics[:, error_index])
             fig = plt.figure()
             plt.bar(x, y, align='edge', width=(high-low)/num)
