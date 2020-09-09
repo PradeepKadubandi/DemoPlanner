@@ -119,7 +119,7 @@ class evaluator:
                 os.makedirs(result_folder)
 
             with open(result_folder + '/trajectory_eval_metrics.csv', 'w') as f:
-                np.savetxt(f, errors.numpy(), fmt='%5.2f', delimiter=',')
+                np.savetxt(f, errors.numpy(), fmt='%5.5f', delimiter=',')
             with open(result_folder + '/trajectory_eval_summary.csv', 'w') as f:
                 f.write('Trajectory Index,Trajectory Length,Policy L1 Loss,Trajectory Loss,Goal Deviation,Combined State Loss\n')
                 f.write('Aggregates:\n')

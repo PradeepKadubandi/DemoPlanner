@@ -57,7 +57,7 @@ def error_interval_counts(low, high, num, errors):
     assert sum(y) == len(errors)
     return x, y
 
-def save_all_plots_policy_rollout_run(rootdir, eval_folder_name):
+def save_all_plots_policy_rollout_run(rootdir):
     error_indices = {2:'PolicyError', 3:'TrajectoryError', 4:'GoalDeviation', 5:'CombinedStateLoss'}
     upper_limits = {2:0.05, 3:0.2, 4:0.2, 5:0.1}
     metrics_file_name = 'trajectory_eval_metrics.csv'
