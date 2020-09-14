@@ -45,7 +45,7 @@ class simulator:
         return torch.as_tensor(cv2.cvtColor(cropped_rgb, cv2.COLOR_RGB2GRAY)).float()
 
 class evaluator:
-    def __init__(self, chkpt_file, device, policy_takes_image, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None):
+    def __init__(self, chkpt_file, device, policy_takes_image, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None, policy_takes_gtx=False):
         self.log_folder = os.path.dirname(chkpt_file)
         self.device = device
         self.chkpt = torch.load(self.log_folder + '/train_checkpoint.tar', map_location=device)
@@ -54,6 +54,7 @@ class evaluator:
         self.op_reverse_adapter = op_reverse_adapter
         self.policy_takes_image = policy_takes_image
         self.persist_to_disk = persist_to_disk
+        self.policy_takes_gtx = policy_takes_gtx
         self.sim = simulator()
 
     def rollout(self, gt_trajectory):
@@ -67,7 +68,10 @@ class evaluator:
         for i in range(len(gt_states)-1):
             with torch.no_grad():
                 ip = curr_image if self.policy_takes_image else curr_state
-                action = self.net(self.ip_adapter(ip.reshape(1, -1)))
+                ip = ip.reshape(1, -1)
+                if self.policy_takes_gtx:
+                    ip = torch.cat((gt_states[i:i+1, :x_dim], ip), dim=1)
+                action = self.net(self.ip_adapter(ip))
                 action = self.op_reverse_adapter(action)
                 if actions is None:
                     actions = torch.as_tensor(action.reshape(1, -1)).to(self.device)

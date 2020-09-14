@@ -78,5 +78,17 @@ def XtYt_trig_adapter_eval(sim_state):
     trig = torch.cat((torch.cos(xtyt), torch.sin(xtyt)), dim=1)
     return trig
 
+def XtIt_scaled_adapter(data):
+    return torch.cat(((data[states_key][:, :x_dim] + joint_max).float() / (2 * joint_max), data[images_key].float() / max_pixel), dim=1)
+
+def XtIt_scaled_adapter_eval(data):
+    return torch.cat(((data[:, :x_dim] + joint_max).float() / (2 * joint_max), data[:, x_dim:].float() / max_pixel), dim=1)
+
+def Xt_from_XtIt_adapter(data):
+    return data[:, :x_dim]
+
+def It_from_XtIt_adapter(data):
+    return data[:, x_dim:]
+
 def identity_adapter(data):
     return data
