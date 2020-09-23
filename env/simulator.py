@@ -85,7 +85,7 @@ class evaluator:
         states = torch.cat((states, actions), dim=1)
         return {states_key: states, images_key: images}
 
-    def evaluate(self, data, target_folder):
+    def evaluate(self, data, target_folder, save_all_to_disk=False):
         N = len(data)
         errors = torch.zeros((N, 6))
         allLabels = []
@@ -111,7 +111,7 @@ class evaluator:
         aggregates[3], aggregates[2] = torch.min(errors, dim=0)
         aggregates[5], aggregates[4] = torch.max(errors, dim=0)
         lower_threshholds = torch.Tensor([-1, 10]) # Total trajectories, trajectories of len > 10
-        upper_threshholds = torch.Tensor([0.01, 0.01, 0.01, 0.01]) # trajectories of policy loss, state loss, dynamics step loss, goal loss < 0.01
+        upper_threshholds = torch.Tensor([0.05, 0.1, 0.1, 0.1]) # trajectories of policy loss, state loss, dynamics step loss, goal loss < 0.01
         aggregates[6] = torch.sum(torch.cat((
             torch.gt(errors[:, :2], lower_threshholds),
             torch.le(errors[:, 2:], upper_threshholds)), dim=1), dim=0)
@@ -159,17 +159,23 @@ class evaluator:
             f.write(builder.getvalue())
 
         if self.persist_to_disk:
-            for i in range(len(sample_descriptions)):
-                index = indices[i]
+            if save_all_to_disk:
+                target_indices = [i for i in range(N)]
+            else:
+                target_indices = [indices[i].item() for i in range(len(sample_descriptions))]
+            for i, index in enumerate(target_indices):
                 labels = allLabels[index][images_key]
                 predictions = allPredictions[index][images_key]
-                filename = '/traj_' + str(index.item()) + '_' + str.join('_', str.split(sample_descriptions[i])) + '.pdf'
+                if save_all_to_disk:
+                    filename = '/traj_' + str(index) + '.pdf'
+                else:
+                    filename = '/traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i])) + '.pdf'
                 with PdfPages(result_folder + filename) as pdf:
-                    for i in range(len(labels)):
+                    for j in range(len(labels)):
                         fig = plt.figure()
                         plt.subplot(1,2,1)
-                        plt.imshow(labels[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+                        plt.imshow(labels[j, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
                         plt.subplot(1,2,2)
-                        plt.imshow(predictions[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+                        plt.imshow(predictions[j, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
                         pdf.savefig(fig)
                         plt.close(fig)
