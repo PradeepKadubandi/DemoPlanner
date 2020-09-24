@@ -10,6 +10,7 @@ import os
 import cv2
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from io import StringIO
 from utils import writeline
 
@@ -45,32 +46,33 @@ class simulator:
         return torch.as_tensor(cv2.cvtColor(cropped_rgb, cv2.COLOR_RGB2GRAY)).float()
 
 class evaluator:
-    def __init__(self, chkpt_file, device, policy_takes_image, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None, policy_takes_gtx=False):
+    def __init__(self, chkpt_file, device, is_image_based_policy, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None, policy_takes_robot_state=False):
         self.log_folder = os.path.dirname(chkpt_file)
         self.device = device
         self.chkpt = torch.load(self.log_folder + '/train_checkpoint.tar', map_location=device)
         self.net = net if net else self.chkpt['model']
         self.ip_adapter = ip_adapter if ip_adapter else self.chkpt['input_adapter']
         self.op_reverse_adapter = op_reverse_adapter
-        self.policy_takes_image = policy_takes_image
+        self.is_image_based_policy = is_image_based_policy
         self.persist_to_disk = persist_to_disk
-        self.policy_takes_gtx = policy_takes_gtx
+        self.policy_takes_robot_state = policy_takes_robot_state
+        assert self.is_image_based_policy or (not self.policy_takes_robot_state), 'Low dimensional policy cannot add robot state to input again, when using low dimensional policy, leave the policy_takes_robot_state as False'
+        self.default_rollout_length = 50
         self.sim = simulator()
 
     def rollout(self, gt_trajectory):
-        gt_states, gt_images = gt_trajectory[states_key], gt_trajectory[images_key]
-        self.sim.reset(gt_states[0])
+        self.sim.reset(gt_trajectory[states_key][0])
         curr_state, curr_image = self.sim.getState()
         curr_state, curr_image = curr_state.to(self.device), curr_image.to(self.device)
         states = torch.as_tensor(curr_state[:x_dim+y_dim].reshape(1, -1))
         images = torch.as_tensor(curr_image.reshape(1, -1))
         actions = None
-        for i in range(len(gt_states)-1):
+        for i in range(self.default_rollout_length):
             with torch.no_grad():
-                ip = curr_image if self.policy_takes_image else curr_state
+                ip = curr_image if self.is_image_based_policy else curr_state
                 ip = ip.reshape(1, -1)
-                if self.policy_takes_gtx:
-                    ip = torch.cat((gt_states[i:i+1, :x_dim], ip), dim=1)
+                if self.policy_takes_robot_state:
+                    ip = torch.cat((curr_state[:x_dim].reshape(1, -1), ip), dim=1)
                 action = self.net(self.ip_adapter(ip))
                 action = self.op_reverse_adapter(action)
                 if actions is None:
@@ -84,6 +86,29 @@ class evaluator:
         actions = torch.cat((actions, torch.zeros_like(actions[0]).reshape(1, -1)), dim=0)
         states = torch.cat((states, actions), dim=1)
         return {states_key: states, images_key: images}
+
+    def save_rollout_video(self, labels, predictions, targetFile):
+        ims = []
+        fig, ax = plt.subplots(1,2)
+        for i in range(len(predictions)):
+            im1 = ax[0].imshow(labels[max(i, len(labels)-1), :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+            im2 = ax[1].imshow(predictions[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+            ims.append([im1, im2])
+
+        ani = animation.ArtistAnimation(fig, ims, interval=500, repeat=False)
+        ani.save(targetFile)
+        plt.close('all')
+
+    def save_rollout_pdf(self, labels, predictions, targetFile):
+        with PdfPages(targetFile) as pdf:
+            for i in range(len(predictions)):
+                fig = plt.figure()
+                plt.subplot(1,2,1)
+                plt.imshow(labels[max(i, len(labels)-1), :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+                plt.subplot(1,2,2)
+                plt.imshow(predictions[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
+                pdf.savefig(fig)
+                plt.close(fig)
 
     def evaluate(self, data, target_folder, save_all_to_disk=False):
         N = len(data)
@@ -99,10 +124,10 @@ class evaluator:
             pred_states, pred_images = predictions[states_key], predictions[images_key]
             errors[index][0] = index
             errors[index][1] = len(label_states)
-            errors[index][2] = F.l1_loss(pred_states[:, u_begin:], label_states[:, u_begin:])
-            errors[index][3] = F.l1_loss(pred_states[:, :x_dim], label_states[:, :x_dim])
+            errors[index][2] = F.l1_loss(pred_states[:len(label_states), u_begin:], label_states[:, u_begin:])
+            errors[index][3] = F.l1_loss(pred_states[:len(label_states), :x_dim], label_states[:, :x_dim])
             errors[index][4] = F.l1_loss(pred_states[-1, :x_dim], label_states[-1, :x_dim])
-            errors[index][5] = F.l1_loss(pred_states[:, :x_dim+y_dim], label_states[:, :x_dim+y_dim])
+            errors[index][5] = F.l1_loss(pred_states[:len(label_states), :x_dim+y_dim], label_states[:, :x_dim+y_dim])
         
         aggregate_row_headers = ['Sum', 'Average', 'Min Index', 'Min Value', 'Max Index', 'Max Value', 'Counts']
         aggregates = torch.zeros((7, 6))
@@ -111,7 +136,7 @@ class evaluator:
         aggregates[3], aggregates[2] = torch.min(errors, dim=0)
         aggregates[5], aggregates[4] = torch.max(errors, dim=0)
         lower_threshholds = torch.Tensor([-1, 10]) # Total trajectories, trajectories of len > 10
-        upper_threshholds = torch.Tensor([0.05, 0.1, 0.1, 0.1]) # trajectories of policy loss, state loss, dynamics step loss, goal loss < 0.01
+        upper_threshholds = torch.Tensor([0.05, 0.1, 0.1, 0.1]) # trajectories of policy loss, state loss, dynamics step loss, goal loss < 0.1
         aggregates[6] = torch.sum(torch.cat((
             torch.gt(errors[:, :2], lower_threshholds),
             torch.le(errors[:, 2:], upper_threshholds)), dim=1), dim=0)
@@ -167,15 +192,8 @@ class evaluator:
                 labels = allLabels[index][images_key]
                 predictions = allPredictions[index][images_key]
                 if save_all_to_disk:
-                    filename = '/traj_' + str(index) + '.pdf'
+                    filename = '/traj_' + str(index)
                 else:
-                    filename = '/traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i])) + '.pdf'
-                with PdfPages(result_folder + filename) as pdf:
-                    for j in range(len(labels)):
-                        fig = plt.figure()
-                        plt.subplot(1,2,1)
-                        plt.imshow(labels[j, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-                        plt.subplot(1,2,2)
-                        plt.imshow(predictions[j, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-                        pdf.savefig(fig)
-                        plt.close(fig)
+                    filename = '/traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i]))
+                self.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'))
+                self.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'))
