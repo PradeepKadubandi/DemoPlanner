@@ -4,15 +4,15 @@ from config import argparser
 from simplereacherdimensions import *
 import gym
 from env.reacher.simple_reacher import SimpleReacherEnv
-from matplotlib.backends.backend_pdf import PdfPages
 import torch
 import os
 import cv2
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from io import StringIO
 from utils import writeline
+import utils
+import plottinghelpers
 
 class simulator:
     def __init__(self):
@@ -87,29 +87,6 @@ class evaluator:
         states = torch.cat((states, actions), dim=1)
         return {states_key: states, images_key: images}
 
-    def save_rollout_video(self, labels, predictions, targetFile):
-        ims = []
-        fig, ax = plt.subplots(1,2)
-        for i in range(len(predictions)):
-            im1 = ax[0].imshow(labels[max(i, len(labels)-1), :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-            im2 = ax[1].imshow(predictions[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-            ims.append([im1, im2])
-
-        ani = animation.ArtistAnimation(fig, ims, interval=500, repeat=False)
-        ani.save(targetFile)
-        plt.close('all')
-
-    def save_rollout_pdf(self, labels, predictions, targetFile):
-        with PdfPages(targetFile) as pdf:
-            for i in range(len(predictions)):
-                fig = plt.figure()
-                plt.subplot(1,2,1)
-                plt.imshow(labels[max(i, len(labels)-1), :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-                plt.subplot(1,2,2)
-                plt.imshow(predictions[i, :].reshape(img_res,img_res).cpu(), cmap=plt.get_cmap("gray"))
-                pdf.savefig(fig)
-                plt.close(fig)
-
     def evaluate(self, data, target_folder, save_all_to_disk=False):
         N = len(data)
         errors = torch.zeros((N, 6))
@@ -147,9 +124,8 @@ class evaluator:
             if not os.path.exists(result_folder):
                 os.makedirs(result_folder)
 
-            with open(result_folder + '/trajectory_eval_metrics.csv', 'w') as f:
-                np.savetxt(f, errors.numpy(), fmt='%5.5f', delimiter=',')
-            with open(result_folder + '/trajectory_eval_summary.csv', 'w') as f:
+            utils.save_array_to_file(errors, os.path.join(result_folder, 'trajectory_eval_metrics.csv'))
+            with open(os.path.join(result_folder, 'trajectory_eval_summary.csv'), 'w') as f:
                 f.write('Trajectory Index,Trajectory Length,Policy L1 Loss,Trajectory Loss,Goal Deviation,Combined State Loss\n')
                 f.write('Aggregates:\n')
                 for i in range(len(aggregate_row_headers)):
@@ -192,8 +168,11 @@ class evaluator:
                 labels = allLabels[index][images_key]
                 predictions = allPredictions[index][images_key]
                 if save_all_to_disk:
-                    filename = '/traj_' + str(index)
+                    filename = 'traj_' + str(index)
                 else:
-                    filename = '/traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i]))
-                self.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'))
-                self.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'))
+                    filename = 'traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i]))
+                if not save_all_to_disk:
+                    utils.save_array_to_file(labels, os.path.join(result_folder, filename + '_gt.csv'))
+                    utils.save_array_to_file(predictions, os.path.join(result_folder, filename + '_rollout.csv'))
+                plottinghelpers.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'), img_res, img_res)
+                plottinghelpers.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'), img_res, img_res)

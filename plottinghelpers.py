@@ -3,6 +3,8 @@ import utils
 import torch
 import os
 import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.animation as animation
 
 def save_recontruction_sample(ip_batch, op_batch, filePath, showimg=False):
     cmap = plt.get_cmap('gray')
@@ -132,3 +134,27 @@ def box_plot_across_runs(rootdir, eval_folder_name, error_index, metric_name, in
     print ('From left to right:')
     for n in run_names:
         print (n)
+
+def save_rollout_video(labels, predictions, targetFile, img_H, img_W):
+    ims = []
+    fig, ax = plt.subplots(1,2)
+    for i in range(len(predictions)):
+        im1 = ax[0].imshow(labels[min(i, len(labels)-1), :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
+        im2 = ax[1].imshow(predictions[i, :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
+        ims.append([im1, im2])
+
+    ani = animation.ArtistAnimation(fig, ims, interval=500, repeat=False)
+    ani.save(targetFile)
+    plt.close('all')
+
+def save_rollout_pdf(labels, predictions, targetFile, img_H, img_W):
+    with PdfPages(targetFile) as pdf:
+        for i in range(len(predictions)):
+            fig = plt.figure()
+            plt.subplot(1,2,1)
+            plt.imshow(labels[min(i, len(labels)-1), :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
+            plt.subplot(1,2,2)
+            plt.imshow(predictions[i, :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
+            pdf.savefig(fig)
+            plt.close(fig)
+
