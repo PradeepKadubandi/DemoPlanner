@@ -40,10 +40,12 @@ class simulator:
         
     def render_image(self):
         img = self.env.render('rgb_array') * 255.0
-        low = (500 - img_res) // 2
-        high = low + img_res
-        cropped_rgb = img[low:high, low:high, :].astype(np.uint8)
-        return torch.as_tensor(cv2.cvtColor(cropped_rgb, cv2.COLOR_RGB2GRAY)).float()
+        low = (500 - 256) // 2
+        high = low + 256
+        img = img[low:high, low:high, :].astype(np.uint8) # crop
+        img = cv2.resize(img, (img_res, img_res)) # resize by subsampling
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) # convert to grayscale
+        return torch.as_tensor(img).float()
 
 class evaluator:
     def __init__(self, chkpt_file, device, is_image_based_policy, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None, policy_takes_robot_state=False):
