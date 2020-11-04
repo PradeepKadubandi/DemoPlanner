@@ -64,7 +64,8 @@ def save_all_plots_policy_rollout_run(rootdir):
     upper_limits = {2:0.05, 3:0.2, 4:0.2, 5:0.1}
     metrics_file_name = 'trajectory_eval_metrics.csv'
     for  eval_folder_name in ['TestSet_Evaluations', 'SmallTrainSet_Evaluations']:
-        save_all_plots(rootdir, eval_folder_name, error_indices, upper_limits, metrics_file_name)
+        if os.path.exists(os.path.join(rootdir, eval_folder_name)):
+            save_all_plots(rootdir, eval_folder_name, error_indices, upper_limits, metrics_file_name)
 
 def save_all_plots_img_auto_encoder_run(rootdir):
     error_indices = {0:'ReconstructionError'}

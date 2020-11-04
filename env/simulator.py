@@ -15,12 +15,13 @@ import utils
 import plottinghelpers
 
 class simulator:
-    def __init__(self):
+    def __init__(self, img_transform=None):
         parser = argparser()
         args, unparsed = parser.parse_known_args()
         reacher.add_arguments(parser)
         args, unparsed = parser.parse_known_args()
         self.env = gym.make(args.env, **args.__dict__)
+        self.img_transform = img_transform
 
     def reset(self, initialState):
         self.env.reset()
@@ -45,10 +46,13 @@ class simulator:
         img = img[low:high, low:high, :].astype(np.uint8) # crop
         img = cv2.resize(img, (img_res, img_res)) # resize by subsampling
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) # convert to grayscale
+        if self.img_transform is not None:
+            img = self.img_transform(img)
         return torch.as_tensor(img).float()
 
 class evaluator:
-    def __init__(self, chkpt_file, device, is_image_based_policy, persist_to_disk, op_reverse_adapter, ip_adapter=None, net=None, policy_takes_robot_state=False):
+    def __init__(self, chkpt_file, device, is_image_based_policy, persist_to_disk, op_reverse_adapter,
+                    ip_adapter=None, net=None, policy_takes_robot_state=False, img_transform=None):
         self.log_folder = os.path.dirname(chkpt_file)
         self.device = device
         self.chkpt = torch.load(self.log_folder + '/train_checkpoint.tar', map_location=device)
@@ -60,7 +64,7 @@ class evaluator:
         self.policy_takes_robot_state = policy_takes_robot_state
         assert self.is_image_based_policy or (not self.policy_takes_robot_state), 'Low dimensional policy cannot add robot state to input again, when using low dimensional policy, leave the policy_takes_robot_state as False'
         self.default_rollout_length = 50
-        self.sim = simulator()
+        self.sim = simulator(img_transform)
 
     def rollout(self, gt_trajectory):
         self.sim.reset(gt_trajectory[states_key][0])
