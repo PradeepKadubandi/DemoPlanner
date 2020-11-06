@@ -107,6 +107,10 @@ class evaluator:
             allPredictions.append(predictions)
             label_states, label_images = labels[states_key], labels[images_key]
             pred_states, pred_images = predictions[states_key], predictions[images_key]
+            # Column descriptions (human index)
+            # 1 : Trajectory Id, 2 : Trajectory Length (Ground Truth)
+            # 3 : Policy L1 Error, 4 : Trajectory L1 Error, 5 : Goal L1 Error
+            # 6 : Combined state loss (not so interesting)
             errors[index][0] = index
             errors[index][1] = len(label_states)
             errors[index][2] = F.l1_loss(pred_states[:len(label_states), u_begin:], label_states[:, u_begin:])
