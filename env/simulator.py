@@ -63,10 +63,12 @@ class evaluator:
         self.persist_to_disk = persist_to_disk
         self.policy_takes_robot_state = policy_takes_robot_state
         assert self.is_image_based_policy or (not self.policy_takes_robot_state), 'Low dimensional policy cannot add robot state to input again, when using low dimensional policy, leave the policy_takes_robot_state as False'
-        self.default_rollout_length = 50
+        self.default_rollout_length = 100
         self.sim = simulator(img_transform)
 
     def rollout(self, gt_trajectory):
+        if len(gt_trajectory[states_key]) > self.default_rollout_length:
+            print ('Found higher length trajectory with len = {}'.format(len(gt_trajectory[states_key])))
         self.sim.reset(gt_trajectory[states_key][0])
         curr_state, curr_image = self.sim.getState()
         curr_state, curr_image = curr_state.to(self.device), curr_image.to(self.device)
