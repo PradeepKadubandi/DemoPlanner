@@ -186,5 +186,5 @@ class evaluator:
                 if not save_all_to_disk:
                     utils.save_array_to_file(labels, os.path.join(result_folder, filename + '_gt.csv'))
                     utils.save_array_to_file(predictions, os.path.join(result_folder, filename + '_rollout.csv'))
-                plottinghelpers.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'), img_res, img_res)
-                plottinghelpers.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'), img_res, img_res)
+                # plottinghelpers.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'), img_res, img_res)
+                plottinghelpers.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'), img_res, img_res, errors[index])

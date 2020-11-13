@@ -136,9 +136,12 @@ def box_plot_across_runs(rootdir, eval_folder_name, error_index, metric_name, in
     for n in run_names:
         print (n)
 
-def save_rollout_video(labels, predictions, targetFile, img_H, img_W):
+def save_rollout_video(labels, predictions, targetFile, img_H, img_W, errors_row):
     ims = []
     fig, ax = plt.subplots(1,2)
+    plt.gcf().text(0.0, 0.14, 'Goal Deviation: {}'.format(errors_row[4]), fontsize=14)
+    plt.gcf().text(0.0, 0.08, 'Trajectory Loss: {}'.format(errors_row[3]), fontsize=14)
+    plt.gcf().text(0.0, 0.02, 'Policy Loss: {}'.format(errors_row[2]), fontsize=14)
     for i in range(len(predictions)):
         im1 = ax[0].imshow(labels[min(i, len(labels)-1), :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
         im2 = ax[1].imshow(predictions[i, :].reshape(img_H, img_W).cpu(), cmap=plt.get_cmap("gray"))
