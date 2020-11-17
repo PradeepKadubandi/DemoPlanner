@@ -18,6 +18,9 @@ def It_unscaled_HW_adapter(data):
 def It_scaled_HW_adapter(data):
     return data[images_key].float().view([-1, 1, img_res, img_res]) / max_pixel
 
+def It_scaled_HW_adapter_eval(data):
+    return data.float().view([-1, 1, img_res, img_res]) / max_pixel
+
 def Xt_unscaled_adapter(data):
     return data[states_key][:, :x_dim].float()
 

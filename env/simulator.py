@@ -95,7 +95,7 @@ class evaluator:
         states = torch.cat((states, actions), dim=1)
         return {states_key: states, images_key: images}
 
-    def evaluate(self, data, target_folder, save_all_to_disk=False):
+    def evaluate(self, data, target_folder):
         N = len(data)
         errors = torch.zeros((N, 6))
         allLabels = []
@@ -172,19 +172,16 @@ class evaluator:
             f.write(builder.getvalue())
 
         if self.persist_to_disk:
-            if save_all_to_disk:
-                target_indices = [i for i in range(N)]
-            else:
-                target_indices = [indices[i].item() for i in range(len(sample_descriptions))]
+            target_indices = [indices[i].item() for i in range(len(sample_descriptions))]
+            random_indices = np.random.randint(N, size=5)
+            target_indices.extend(random_indices)
+
             for i, index in enumerate(target_indices):
+                description = sample_descriptions[i] if i < len(sample_descriptions) else 'Random'
                 labels = allLabels[index][images_key]
                 predictions = allPredictions[index][images_key]
-                if save_all_to_disk:
-                    filename = 'traj_' + str(index)
-                else:
-                    filename = 'traj_' + str(index) + '_' + str.join('_', str.split(sample_descriptions[i]))
-                if not save_all_to_disk:
-                    utils.save_array_to_file(labels, os.path.join(result_folder, filename + '_gt.csv'))
-                    utils.save_array_to_file(predictions, os.path.join(result_folder, filename + '_rollout.csv'))
+                filename = 'traj_' + str(index) + '_' + str.join('_', str.split(description))
+                # utils.save_array_to_file(labels, os.path.join(result_folder, filename + '_gt.csv'))
+                # utils.save_array_to_file(predictions, os.path.join(result_folder, filename + '_rollout.csv'))
                 # plottinghelpers.save_rollout_pdf(labels, predictions, os.path.join(result_folder, filename + '.pdf'), img_res, img_res)
                 plottinghelpers.save_rollout_video(labels, predictions, os.path.join(result_folder, filename + '.mp4'), img_res, img_res, errors[index])
