@@ -122,42 +122,18 @@ class ExptRunner(ExptRunnerBase):
         self.log_network_details()
 
         optimizer = optim.Adam(self.net.parameters()) if optimizer_func is None else optimizer_func(self.net)
-        # For evaluating while training
-        # eval_train_data = self.train_data.data[:10000]
-        # eval_test_data = self.test_data.data
 
         builder = StringIO()
-        # eval_freq = 1000
-        # if self.train_data.data.size()[0] < eval_freq * self.train_mini_batch_size:
-        #     eval_freq = 100
         for epoch in range(epochs):
             current_epoch_losses = []
             writeline(builder, '{}: Epoch {} Begin'.format(datetime.now(), epoch))
             for i, data in enumerate(self.train_loader, 0):
                 optimizer.zero_grad()
-
                 _, _, op_batch, loss = self.run_mini_batch(data)
-                
                 loss.backward()
                 optimizer.step()
-                
                 current_epoch_losses.append(loss.item())
-                # if i % eval_freq == (eval_freq-1):
-                #     index = epoch * len(self.train_loader) + i
-                #     writeline(builder, '{}: Eval at Index {} Begin'.format(datetime.now(), index))
-                #     avg_loss = running_loss / eval_freq
-                #     writeline(builder, '[%d, %5d] Average Minibatch loss: %.3f' % (epoch+1, i+1, avg_loss))
-                #     self.writer.add_scalar('training_loss', avg_loss, index)
-                #     running_loss = 0.0
 
-                #     with torch.no_grad():
-                #         _, _, train_out, train_loss = self.run_mini_batch(eval_train_data)
-                #         writeline(builder, 'MinibatchIndex {}: Training Loss (Max 10000 rows): {}'.format(index, train_loss))
-
-                #         test_input, test_label, test_out, test_loss = self.run_mini_batch(eval_test_data)
-                #         writeline(builder, 'MinibatchIndex {}: Test Loss: {}'.format(index, test_loss))
-
-                #     writeline(builder, '{}: Eval at Index {} End'.format(datetime.now(), index))
             avg_mbl = sum(current_epoch_losses) / len(current_epoch_losses)
             worst_mbl = max(current_epoch_losses)
             best_mbl = min(current_epoch_losses)
@@ -276,24 +252,6 @@ class ExptEvaluator:
                     for v in bad_test_samples:
                         b.write(str(v))
                         b.write('\n')
-                # if ground_truth.size()[1] == 1024:
-                #     batch_size = 1
-                #     self.save_matplotlib_comparison(batch_size, 
-                #         demopl_v1_data_to_img(ground_truth[best_sample:best_sample+1], batch_size),
-                #         demopl_v1_data_to_img(op_batch[best_sample:best_sample+1], batch_size),
-                #         filename='best_reconstruction_{}'.format(best_sample),
-                #         printHeader="Final Reconstruction For Best Test Image {}".format(best_sample))
-                #     self.save_matplotlib_comparison(batch_size, 
-                #         demopl_v1_data_to_img(ground_truth[worst_sample:worst_sample+1], batch_size),
-                #         demopl_v1_data_to_img(op_batch[worst_sample:worst_sample+1], batch_size),
-                #         filename='worst_reconstruction_{}'.format(worst_sample),
-                #         printHeader="Final Reconstruction For Worst Test Image {}".format(worst_sample))
-                #     for n in range(5):
-                #         self.save_matplotlib_comparison(batch_size, 
-                #             demopl_v1_data_to_img(ground_truth[n:n+1], batch_size),
-                #             demopl_v1_data_to_img(op_batch[n], batch_size),
-                #             filename='final_reconstruction_{}'.format(n),
-                #             printHeader="Final Reconstruction For Test Image {}".format(n))
 
         with open(self.log_folder + '/test_log.txt', 'w') as f:
             f.write(builder.getvalue())
